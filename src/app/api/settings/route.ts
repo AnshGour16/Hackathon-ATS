@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Settings from '@/models/Settings';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 // Helper function to safely get or create the global settings document
 async function getGlobalSettings() {
@@ -33,7 +34,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession();
+        const session = await getServerSession(authOptions);
         if (!session || session.user?.email !== 'admin@hackathon.com') { // Basic admin check
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

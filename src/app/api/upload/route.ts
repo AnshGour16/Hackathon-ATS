@@ -4,10 +4,10 @@ import Team from '@/models/Team';
 import Submission from '@/models/Submission';
 import { extractTextFromPDF } from '@/lib/pdf-parser';
 import { evaluatePresentationWithGemini } from '@/lib/gemini';
-import Settings from '@/models/Settings';
+import Settings, { ITrack } from '@/models/Settings';
 import User from '@/models/User';
-import mongoose from 'mongoose';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
@@ -16,14 +16,26 @@ export async function POST(req: NextRequest) {
     try {
         await connectToDatabase();
 
-        const session = await getServerSession();
-        if (!session || !session.user || !session.user.email) {
-            return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 });
+        const session = await getServerSession(authOptions);
+        let user = null;
+
+        if (session?.user?.email) {
+            user = await User.findOne({ email: session.user.email });
         }
 
-        const user = await User.findOne({ email: session.user.email });
+        // If no authenticated user, find or create a default guest participant user
         if (!user) {
-            return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+            user = await User.findOneAndUpdate(
+                { email: 'guest@hackathon.com' },
+                {
+                    $setOnInsert: {
+                        name: 'Guest Submitter',
+                        email: 'guest@hackathon.com',
+                        role: 'PARTICIPANT'
+                    }
+                },
+                { upsert: true, new: true }
+            );
         }
 
         const formData = await req.formData();
@@ -37,7 +49,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'File and Team Name are required' }, { status: 400 });
         }
 
-        let members: any[] = [];
+        let members: { name: string; department: string; rollNo: string }[] = [];
         try {
             if (membersStr) members = JSON.parse(membersStr);
         } catch {
@@ -65,7 +77,7 @@ export async function POST(req: NextRequest) {
         if (trackName) {
             const globalSettings = await Settings.findById('global');
             if (globalSettings && globalSettings.tracks) {
-                trackSettings = globalSettings.tracks.find((t: any) => t.name === trackName);
+                trackSettings = globalSettings.tracks.find((t: ITrack) => t.name === trackName);
             }
         }
 

@@ -83,6 +83,19 @@ function LoginForm() {
                     <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? 'Authenticating...' : 'Sign In'}
                     </Button>
+
+                    <div className="pt-2 border-t border-white/10 text-center">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setEmail('admin@hackathon.com');
+                                setPassword('admin123');
+                            }}
+                            className="text-xs text-indigo-400 hover:text-indigo-300 underline"
+                        >
+                            Auto-fill default Admin credentials (admin@hackathon.com / admin123)
+                        </button>
+                    </div>
                 </form>
             </CardContent>
         </Card>

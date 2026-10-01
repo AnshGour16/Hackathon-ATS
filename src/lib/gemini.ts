@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { ITrack } from '@/models/Settings';
 
 // Initialize the Gemini SDK. 
 // Note: You must ensure GEMINI_API_KEY is set in your .env.local file.
@@ -10,7 +11,7 @@ const ai = new GoogleGenAI({
  * Helper function to evaluate the parsed presentation text.
  * Expects a structured JSON response matching the IAIEvaluation interface.
  */
-export async function evaluatePresentationWithGemini(presentationText: string, trackSettings: any = null) {
+export async function evaluatePresentationWithGemini(presentationText: string, trackSettings: ITrack | null = null) {
 
   // Base Default Criteria
   let criteriaString = `
@@ -24,8 +25,8 @@ export async function evaluatePresentationWithGemini(presentationText: string, t
   // Apply Track Overrides
   if (trackSettings) {
     if (trackSettings.rubrics && trackSettings.rubrics.length > 0) {
-      criteriaString = trackSettings.rubrics.map((r: any) =>
-        `    { "criterion": "${r.criterion}", "score": number (0-${r.weightage}), "reasoning": "string (Consider: ${r.description})" }`
+      criteriaString = trackSettings.rubrics.map((r: { criterion: string; weightage: number; description?: string }) =>
+        `    { "criterion": "${r.criterion}", "score": number (0-${r.weightage}), "reasoning": "string (Consider: ${r.description || ''})" }`
       ).join(',\n');
     }
     if (trackSettings.requiredSlides && trackSettings.requiredSlides.length > 0) {
@@ -63,7 +64,7 @@ ${presentationText}
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

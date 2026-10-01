@@ -5,6 +5,23 @@ import '@/models/Team';
 
 export const dynamic = 'force-dynamic';
 
+interface IExportSubmission {
+    team?: {
+        name?: string;
+        track?: string;
+        problemStatement?: string;
+        members?: { name: string }[];
+    };
+    status?: string;
+    aiEvaluation?: {
+        totalScore?: number;
+        strengths?: string[];
+        weaknesses?: string[];
+        missingSections?: string[];
+        plagiarismFlag?: boolean;
+    };
+}
+
 export async function GET() {
     try {
         await connectToDatabase();
@@ -12,7 +29,7 @@ export async function GET() {
         const submissions = await Submission.find({})
             .populate('team', 'name problemStatement track members')
             .sort({ createdAt: -1 })
-            .lean() as any[];
+            .lean() as unknown as IExportSubmission[];
 
         if (!submissions || submissions.length === 0) {
             return new NextResponse('No submissions found', { status: 404 });

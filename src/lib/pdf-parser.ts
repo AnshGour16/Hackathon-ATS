@@ -10,8 +10,15 @@ export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
     const pdfParser = new PDFParser(null, true);
 
     pdfParser.on('pdfParser_dataError', (errData: unknown) => {
-      console.error('PDF Parse Error:', (errData as { parserError: Error }).parserError);
-      reject(new Error(((errData as { parserError: Error }).parserError).message));
+      const parsedErr = errData as { parserError?: Error | string };
+      const errorMessage =
+        parsedErr?.parserError instanceof Error
+          ? parsedErr.parserError.message
+          : typeof parsedErr?.parserError === 'string'
+          ? parsedErr.parserError
+          : 'Failed to parse PDF';
+      console.error('PDF Parse Error:', errorMessage);
+      reject(new Error(errorMessage));
     });
 
     pdfParser.on('pdfParser_dataReady', () => {

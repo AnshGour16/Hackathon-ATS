@@ -4,6 +4,7 @@ import Submission from '@/models/Submission';
 import Team from '@/models/Team';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export async function GET() {
     try {
         await connectToDatabase();
 
-        const session = await getServerSession();
+        const session = await getServerSession(authOptions);
         if (!session || !session.user || !session.user.email) {
             return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 });
         }

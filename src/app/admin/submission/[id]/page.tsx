@@ -74,7 +74,7 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
 
                         {data.team?.members?.length > 0 && !blindMode && (
                             <div className="flex flex-wrap gap-2 mt-2">
-                                {data.team.members.map((member: any, idx: number) => (
+                                {data.team.members.map((member: { name: string; department?: string; rollNo?: string }, idx: number) => (
                                     member?.name ? <Badge key={idx} variant="secondary" className="bg-primary/10 text-primary">{member.name} ({member.department} - {member.rollNo})</Badge> : null
                                 ))}
                             </div>
@@ -148,7 +148,7 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                                 The AI has flagged this submission as highly derivative or remarkably similar to known past projects/cliches.
                             </p>
                             <div className="bg-amber-950/50 p-3 rounded-lg border border-amber-900/50 text-sm text-amber-300/90 italic">
-                                "{ai.plagiarismWarning || 'This idea appears to be unoriginal. Please review carefully.'}"
+                                &ldquo;{ai.plagiarismWarning || 'This idea appears to be unoriginal. Please review carefully.'}&rdquo;
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,11 @@ interface IAI {
     missingSections?: string[];
     strengths?: string[];
     weaknesses?: string[];
-    githubAnalysis?: any;
+    githubAnalysis?: {
+        technicalComplexity: number;
+        codeQuality: string;
+        commitActivity: string;
+    };
 }
 
 interface ISubmission {
@@ -130,7 +135,9 @@ export default function ParticipantDashboard() {
                         <CardDescription>You have not uploaded a project pitch deck yet.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button asChild className="w-full"><a href="/">Go to Upload</a></Button>
+                        <Button asChild className="w-full">
+                            <Link href="/">Go to Upload</Link>
+                        </Button>
                     </CardContent>
                 </Card>
             </div>

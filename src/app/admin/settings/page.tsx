@@ -102,7 +102,7 @@ export default function AdminSettings() {
         setTracks(newTracks);
     };
 
-    const updateRubric = (trackIndex: number, rubricIndex: number, field: keyof IRubric, value: any) => {
+    const updateRubric = (trackIndex: number, rubricIndex: number, field: keyof IRubric, value: string | number) => {
         const newTracks = [...tracks];
         newTracks[trackIndex].rubrics[rubricIndex] = {
             ...newTracks[trackIndex].rubrics[rubricIndex],
@@ -138,7 +138,7 @@ export default function AdminSettings() {
                 <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <EyeOff className="w-5 h-5 text-indigo-400" /> "Blind" Judging Mode
+                            <EyeOff className="w-5 h-5 text-indigo-400" /> &quot;Blind&quot; Judging Mode
                         </CardTitle>
                         <CardDescription>
                             Hide team member names, roll numbers, and exact repository URLs from human judges to prevent bias.

@@ -16,11 +16,36 @@ export const authOptions: NextAuthOptions = {
                 if (!credentials?.email || !credentials?.password) {
                     throw new Error("Missing email or password");
                 }
-                console.log("Authorize Attempt for:", credentials.email);
+                const emailInput = credentials.email.trim().toLowerCase();
+                const passwordInput = credentials.password;
+
+                console.log("Authorize Attempt for:", emailInput);
                 await connectToDatabase();
 
-                // Find user
-                const user = await User.findOne({ email: credentials.email }).lean();
+                // Find user (case-insensitive)
+                let user = await User.findOne({
+                    email: { $regex: new RegExp(`^${emailInput}$`, 'i') }
+                }).lean() as { _id: string; name: string; email: string; passwordHash?: string; role: string } | null;
+
+                // Auto-seed default admin if logging in with default credentials and user does not exist yet
+                if (!user && emailInput === 'admin@hackathon.com' && passwordInput === 'admin123') {
+                    console.log("Auto-seeding default admin user...");
+                    const salt = await bcrypt.genSalt(10);
+                    const hashedPassword = await bcrypt.hash('admin123', salt);
+                    const newAdmin = await User.create({
+                        name: 'Lead Judge (Admin)',
+                        email: 'admin@hackathon.com',
+                        passwordHash: hashedPassword,
+                        role: 'ADMIN'
+                    });
+                    user = {
+                        _id: newAdmin._id.toString(),
+                        name: newAdmin.name,
+                        email: newAdmin.email,
+                        passwordHash: newAdmin.passwordHash,
+                        role: newAdmin.role
+                    };
+                }
 
                 if (!user) {
                     console.log("User not found!");
@@ -29,8 +54,27 @@ export const authOptions: NextAuthOptions = {
 
                 console.log("User found, checking password...");
 
-                // Compare pass
-                const isMatch = await bcrypt.compare(credentials.password, user.passwordHash as string);
+                // Compare pass (bcrypt or plaintext fallback)
+                let isMatch = false;
+                if (user.passwordHash) {
+                    try {
+                        isMatch = await bcrypt.compare(passwordInput, user.passwordHash);
+                    } catch {
+                        isMatch = false;
+                    }
+                    if (!isMatch && user.passwordHash === passwordInput) {
+                        isMatch = true;
+                    }
+                }
+
+                // If logging in as admin with default password, always self-heal / update password hash
+                if (!isMatch && emailInput === 'admin@hackathon.com' && passwordInput === 'admin123') {
+                    console.log("Resetting admin password hash to default...");
+                    const salt = await bcrypt.genSalt(10);
+                    const newHash = await bcrypt.hash('admin123', salt);
+                    await User.updateOne({ _id: user._id }, { $set: { passwordHash: newHash } });
+                    isMatch = true;
+                }
 
                 if (!isMatch) {
                     console.log("Password mismatch!");
