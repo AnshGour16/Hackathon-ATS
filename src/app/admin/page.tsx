@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, RefreshCw, Download } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ExternalLink, RefreshCw, Download, Search, Trophy, Users, BarChart2, AlertTriangle, Sparkles, Filter } from 'lucide-react';
 import Link from 'next/link';
 
 import { ISubmission } from '@/models/Submission';
@@ -20,6 +21,11 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [isCodeSubmissionOpen, setIsCodeSubmissionOpen] = useState(false);
     const [updatingPhase, setUpdatingPhase] = useState(false);
+
+    // Interactive Filters
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTrack, setSelectedTrack] = useState('ALL');
+    const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST'>('SCORE_DESC');
 
     const fetchSettings = async () => {
         try {
@@ -58,11 +64,7 @@ export default function AdminDashboard() {
             const res = await fetch('/api/submissions');
             const data = await res.json();
             if (data.success) {
-                // Sort by totalScore descending so best projects are at the top
-                const sorted = data.data.sort((a: ISubmissionWithTeam, b: ISubmissionWithTeam) =>
-                    (b.aiEvaluation?.totalScore || 0) - (a.aiEvaluation?.totalScore || 0)
-                );
-                setSubmissions(sorted);
+                setSubmissions(data.data || []);
             }
         } catch (e) {
             console.error(e);
@@ -76,97 +78,308 @@ export default function AdminDashboard() {
         fetchSettings();
     }, []);
 
+    // Extract unique tracks
+    const uniqueTracks = useMemo(() => {
+        const tracks = new Set<string>();
+        submissions.forEach((s) => {
+            if (s.team?.track) tracks.add(s.team.track);
+        });
+        return Array.from(tracks);
+    }, [submissions]);
+
+    // Computed Analytics
+    const stats = useMemo(() => {
+        const total = submissions.length;
+        if (total === 0) return { total: 0, highest: 0, topTeam: 'N/A', average: 0, plagiarismCount: 0 };
+
+        let highest = 0;
+        let topTeam = 'N/A';
+        let totalScoreSum = 0;
+        let evaluatedCount = 0;
+        let plagiarismCount = 0;
+
+        submissions.forEach((sub) => {
+            const score = sub.aiEvaluation?.totalScore || 0;
+            if (score > highest) {
+                highest = score;
+                topTeam = sub.team?.name || 'Unknown';
+            }
+            if (sub.aiEvaluation?.totalScore !== undefined) {
+                totalScoreSum += score;
+                evaluatedCount++;
+            }
+            if (sub.aiEvaluation?.plagiarismFlag) {
+                plagiarismCount++;
+            }
+        });
+
+        const average = evaluatedCount > 0 ? Math.round(totalScoreSum / evaluatedCount) : 0;
+        return { total, highest, topTeam, average, plagiarismCount };
+    }, [submissions]);
+
+    // Filtered & Sorted Submissions
+    const filteredSubmissions = useMemo(() => {
+        return submissions
+            .filter((sub) => {
+                const matchesSearch =
+                    !searchQuery ||
+                    sub.team?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    sub.team?.problemStatement?.toLowerCase().includes(searchQuery.toLowerCase());
+
+                const matchesTrack =
+                    selectedTrack === 'ALL' || (sub.team?.track || 'General').toLowerCase() === selectedTrack.toLowerCase();
+
+                return matchesSearch && matchesTrack;
+            })
+            .sort((a, b) => {
+                const scoreA = a.aiEvaluation?.totalScore ?? -1;
+                const scoreB = b.aiEvaluation?.totalScore ?? -1;
+
+                if (sortBy === 'SCORE_DESC') return scoreB - scoreA;
+                if (sortBy === 'SCORE_ASC') return scoreA - scoreB;
+                if (sortBy === 'NEWEST') {
+                    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+                }
+                return 0;
+            });
+    }, [submissions, searchQuery, selectedTrack, sortBy]);
+
     return (
-        <div className="min-h-screen p-8 relative">
+        <div className="min-h-screen p-6 md:p-10 relative">
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
 
             <div className="max-w-6xl mx-auto space-y-8 relative z-10">
-                <div className="flex justify-between items-center">
+                {/* Header & Controls */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Hackathon Leaderboard</h1>
-                        <p className="text-neutral-400">All parsed submissions automatically ranked by AI Total Score.</p>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-2">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Live Hackathon Control Center
+                        </div>
+                        <h1 className="text-3xl font-bold tracking-tight text-white">Hackathon Leaderboard</h1>
+                        <p className="text-neutral-400 text-sm mt-1">Real-time AI-screened submissions with ranked scores & actionable feedback.</p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                        <div className="flex items-center gap-3 bg-neutral-900/50 p-3 rounded-lg border border-neutral-800">
-                            <div className="text-right">
-                                <div className="text-sm font-medium text-white">Code Submission Phase</div>
-                                <div className={`text-xs ${isCodeSubmissionOpen ? 'text-green-400' : 'text-neutral-500'}`}>
-                                    {isCodeSubmissionOpen ? 'Unlocked' : 'Locked'}
+
+                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <div className="flex items-center gap-3 bg-neutral-900/60 p-2.5 px-4 rounded-xl border border-neutral-800 backdrop-blur-sm">
+                            <div className="text-left">
+                                <div className="text-xs font-medium text-white">Phase 2 Code Submission</div>
+                                <div className={`text-[11px] font-semibold ${isCodeSubmissionOpen ? 'text-emerald-400' : 'text-neutral-400'}`}>
+                                    {isCodeSubmissionOpen ? '● Portal Unlocked' : '○ Locked'}
                                 </div>
                             </div>
                             <button
                                 onClick={togglePhase}
                                 disabled={updatingPhase}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background ${isCodeSubmissionOpen ? 'bg-primary' : 'bg-neutral-700'}`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary ${isCodeSubmissionOpen ? 'bg-primary' : 'bg-neutral-700'}`}
                             >
                                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCodeSubmissionOpen ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
                         </div>
+
                         <div className="flex gap-2">
-                            <Button asChild variant="outline" className="text-neutral-300 border-neutral-800">
+                            <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
                                 <a href="/api/export" download="hackathon_leaderboard.csv">
-                                    <Download className="h-4 w-4 mr-2" /> Export CSV
+                                    <Download className="h-4 w-4 mr-1.5" /> Export CSV
                                 </a>
                             </Button>
-                            <Button asChild variant="outline" className="text-neutral-300 border-neutral-800">
-                                <Link href="/admin/settings">Advanced Settings</Link>
+                            <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
+                                <Link href="/admin/settings">Settings</Link>
                             </Button>
-                            <Button onClick={fetchSubmissions} variant="outline" className="text-neutral-300 border-neutral-800">
-                                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
+                            <Button onClick={fetchSubmissions} variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
+                                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
                     </div>
                 </div>
 
-                <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                    <CardHeader>
-                        <CardTitle>Leaderboard: All Submissions</CardTitle>
+                {/* Stat Overview Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                        <CardContent className="p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                                <Users className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <span className="text-xs text-neutral-400 font-medium">Total Teams</span>
+                                <h3 className="text-xl font-bold text-white">{stats.total}</h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                        <CardContent className="p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                                <Trophy className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <span className="text-xs text-neutral-400 font-medium">Highest Score</span>
+                                <h3 className="text-xl font-bold text-white">
+                                    {stats.highest} <span className="text-xs font-normal text-neutral-400">({stats.topTeam.slice(0, 10)})</span>
+                                </h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                        <CardContent className="p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                                <BarChart2 className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <span className="text-xs text-neutral-400 font-medium">Average Score</span>
+                                <h3 className="text-xl font-bold text-white">{stats.average}/100</h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                        <CardContent className="p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                                <AlertTriangle className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <span className="text-xs text-neutral-400 font-medium">Plagiarism Alerts</span>
+                                <h3 className="text-xl font-bold text-white">{stats.plagiarismCount}</h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-800/80 backdrop-blur-sm">
+                    <div className="relative w-full sm:w-80">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <Input
+                            placeholder="Search team or problem..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 bg-neutral-900/70 border-neutral-800 text-sm h-9 text-white placeholder:text-neutral-500"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                        <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                            <Filter className="w-3.5 h-3.5" /> Track:
+                        </div>
+                        <select
+                            value={selectedTrack}
+                            onChange={(e) => setSelectedTrack(e.target.value)}
+                            className="h-9 px-3 text-xs bg-neutral-900/80 border border-neutral-800 rounded-lg text-white"
+                        >
+                            <option value="ALL">All Tracks</option>
+                            <option value="General">General</option>
+                            {uniqueTracks.filter((t) => t.toLowerCase() !== 'general').map((t, i) => (
+                                <option key={i} value={t}>
+                                    {t}
+                                </option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as 'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST')}
+                            className="h-9 px-3 text-xs bg-neutral-900/80 border border-neutral-800 rounded-lg text-white"
+                        >
+                            <option value="SCORE_DESC">Score (High to Low)</option>
+                            <option value="SCORE_ASC">Score (Low to High)</option>
+                            <option value="NEWEST">Newest First</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Leaderboard Table */}
+                <Card className="border-primary/20 bg-background/60 backdrop-blur-md overflow-hidden">
+                    <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between">
+                        <CardTitle className="text-lg font-bold">Ranked Submissions ({filteredSubmissions.length})</CardTitle>
+                        {searchQuery && (
+                            <button onClick={() => setSearchQuery('')} className="text-xs text-primary hover:underline">
+                                Clear Search Filter
+                            </button>
+                        )}
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-0">
                         {loading ? (
-                            <div className="text-center py-10 opacity-50">Loading submissions...</div>
-                        ) : submissions.length === 0 ? (
-                            <div className="text-center py-10 opacity-50">No submissions found.</div>
+                            <div className="text-center py-16 text-neutral-400">
+                                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                                Loading leaderboard data...
+                            </div>
+                        ) : filteredSubmissions.length === 0 ? (
+                            <div className="text-center py-16 text-neutral-400">
+                                <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                                No submissions match your filter.
+                            </div>
                         ) : (
                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Team Name</TableHead>
-                                        <TableHead>Problem Statement</TableHead>
+                                <TableHeader className="bg-neutral-900/40">
+                                    <TableRow className="border-neutral-800">
+                                        <TableHead className="w-12 text-center">#</TableHead>
+                                        <TableHead>Team & Track</TableHead>
+                                        <TableHead className="hidden md:table-cell">Problem Statement</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">AI Score</TableHead>
-                                        <TableHead className="text-right">Details</TableHead>
+                                        <TableHead className="text-right">ATS Score</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {submissions.map((sub) => (
-                                        <TableRow key={sub._id?.toString()}>
-                                            <TableCell className="font-medium">{sub.team?.name || 'Unknown'}</TableCell>
-                                            <TableCell>{sub.team?.problemStatement || 'N/A'}</TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={sub.status === 'EVALUATED' ? 'default' : 'secondary'}
-                                                    className={sub.status === 'EVALUATED' ? 'bg-primary/20 text-primary border-primary/30' : ''}
-                                                >
-                                                    {sub.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right font-bold text-lg">
-                                                {sub.aiEvaluation?.totalScore ? (
-                                                    <span className={sub.aiEvaluation.totalScore > 80 ? 'text-green-400' : 'text-primary'}>
-                                                        {sub.aiEvaluation.totalScore}
-                                                    </span>
-                                                ) : '—'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button asChild variant="ghost" size="sm" disabled={sub.status !== 'EVALUATED'}>
-                                                    <Link href={`/admin/submission/${sub._id}`}>
-                                                        View <ExternalLink className="ml-2 h-4 w-4" />
-                                                    </Link>
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {filteredSubmissions.map((sub, idx) => {
+                                        const score = sub.aiEvaluation?.totalScore;
+                                        const isTop3 = idx < 3 && sortBy === 'SCORE_DESC' && !searchQuery;
+                                        return (
+                                            <TableRow key={sub._id?.toString()} className="border-neutral-800/60 hover:bg-neutral-900/30 transition-colors">
+                                                <TableCell className="text-center font-bold text-xs text-neutral-400">
+                                                    {isTop3 ? (
+                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-extrabold">
+                                                            {idx + 1}
+                                                        </span>
+                                                    ) : (
+                                                        idx + 1
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-semibold text-white flex items-center gap-2">
+                                                        {sub.team?.name || 'Unknown Team'}
+                                                        {sub.aiEvaluation?.plagiarismFlag && (
+                                                            <Badge variant="destructive" className="bg-amber-900/40 text-amber-300 text-[10px] px-1.5 py-0 border-amber-800">
+                                                                Cliche Flag
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs text-indigo-400 mt-0.5">
+                                                        {sub.team?.track || 'General'} Track
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell text-xs text-neutral-400 max-w-xs truncate">
+                                                    {sub.team?.problemStatement || 'N/A'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant={sub.status === 'EVALUATED' ? 'default' : 'secondary'}
+                                                        className={sub.status === 'EVALUATED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs' : 'text-xs'}
+                                                    >
+                                                        {sub.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right font-bold text-lg">
+                                                    {score !== undefined ? (
+                                                        <span className={score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-primary' : 'text-amber-400'}>
+                                                            {score}
+                                                            <span className="text-xs text-neutral-500 font-normal">/100</span>
+                                                        </span>
+                                                    ) : (
+                                                        '—'
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button asChild variant="outline" size="sm" className="h-8 text-xs border-neutral-800 hover:bg-neutral-800" disabled={sub.status !== 'EVALUATED'}>
+                                                        <Link href={`/admin/submission/${sub._id}`}>
+                                                            Scorecard <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                                                        </Link>
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         )}

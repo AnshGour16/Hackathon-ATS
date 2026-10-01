@@ -128,16 +128,22 @@ export default function SubmitCodePage() {
                         </div>
 
                         <div className="space-y-2 flex flex-col">
-                            <Label htmlFor="githubUrl" className="text-white">Public Repository URL</Label>
+                            <div className="flex justify-between items-center">
+                                <Label htmlFor="githubUrl" className="text-white">Public Repository URL</Label>
+                                <span className="text-[11px] text-neutral-400">Must be public</span>
+                            </div>
                             <Input
                                 id="githubUrl"
                                 type="url"
-                                placeholder="https://github.com/team/project"
+                                placeholder="https://github.com/organization/project"
                                 value={githubUrl}
                                 onChange={(e) => setGithubUrl(e.target.value)}
                                 className="bg-neutral-900/50 border-neutral-800 text-white"
                                 required
                             />
+                            <p className="text-[11px] text-neutral-400 leading-tight">
+                                💡 Our AI will scrape and analyze your <code>README.md</code>, commit effort, and dependencies (e.g., <code>package.json</code>).
+                            </p>
                         </div>
 
                         {status === 'error' && (
