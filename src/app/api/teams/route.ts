@@ -9,7 +9,13 @@ export async function GET() {
         await connectToDatabase();
 
         // Find all teams that don't have a githubUrl populated yet
-        const teams = await Team.find({ githubUrl: { $exists: false } }).select('_id name');
+        const teams = await Team.find({
+            $or: [
+                { githubUrl: { $exists: false } },
+                { githubUrl: null },
+                { githubUrl: '' }
+            ]
+        }).select('_id name');
 
         return NextResponse.json({ success: true, teams });
     } catch (error: unknown) {

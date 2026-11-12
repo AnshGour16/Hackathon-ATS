@@ -111,7 +111,12 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                         <Button
                             variant="default"
                             className="bg-indigo-600 hover:bg-indigo-700"
-                            onClick={() => generateFeedbackPDF(data.team as unknown as Record<string, unknown>, ai as unknown as Record<string, unknown>)}
+                            onClick={() => {
+                                const exportTeam = blindMode
+                                    ? { ...(data.team as unknown as Record<string, unknown>), name: 'Team Redacted (Blind Mode)' }
+                                    : (data.team as unknown as Record<string, unknown>);
+                                generateFeedbackPDF(exportTeam, ai as unknown as Record<string, unknown>);
+                            }}
                         >
                             <Download className="w-4 h-4 mr-2" />
                             Download Report

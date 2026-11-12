@@ -28,12 +28,8 @@ export async function GET() {
 
         const submissions = await Submission.find({})
             .populate('team', 'name problemStatement track members')
-            .sort({ createdAt: -1 })
+            .sort({ 'aiEvaluation.totalScore': -1, createdAt: -1 })
             .lean() as unknown as IExportSubmission[];
-
-        if (!submissions || submissions.length === 0) {
-            return new NextResponse('No submissions found', { status: 404 });
-        }
 
         // CSV Header
         const headers = [
@@ -50,7 +46,7 @@ export async function GET() {
         ];
 
         // Format rows
-        const rows = submissions.map(sub => {
+        const rows = (submissions || []).map(sub => {
             const team = sub.team || {};
             const evalData = sub.aiEvaluation || {};
             return [

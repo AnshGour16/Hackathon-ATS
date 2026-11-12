@@ -19,6 +19,8 @@ interface RadarDataProps {
 }
 
 export default function ScoreRadarChart({ data }: RadarDataProps) {
+    const maxDomain = Math.max(10, ...data.map(d => Math.max(d.fullMark || 10, d.score || 0)));
+
     // If we don't have exactly 3-5 criteria, a radar chart might look weird, 
     // but Recharts handles it gracefully.
     return (
@@ -41,7 +43,7 @@ export default function ScoreRadarChart({ data }: RadarDataProps) {
                     />
                     <PolarRadiusAxis
                         angle={30}
-                        domain={[0, 10]}
+                        domain={[0, maxDomain]}
                         tick={{ fill: '#64748b', fontSize: 10 }}
                         axisLine={false}
                     />

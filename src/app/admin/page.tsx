@@ -20,6 +20,7 @@ export default function AdminDashboard() {
     const [submissions, setSubmissions] = useState<ISubmissionWithTeam[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCodeSubmissionOpen, setIsCodeSubmissionOpen] = useState(false);
+    const [blindJudgingEnabled, setBlindJudgingEnabled] = useState(false);
     const [updatingPhase, setUpdatingPhase] = useState(false);
 
     // Interactive Filters
@@ -33,6 +34,7 @@ export default function AdminDashboard() {
             const data = await res.json();
             if (data.success) {
                 setIsCodeSubmissionOpen(data.isCodeSubmissionOpen);
+                setBlindJudgingEnabled(Boolean(data.blindJudgingEnabled));
             }
         } catch (error) {
             console.error('Failed to fetch settings:', error);
@@ -214,9 +216,9 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                                 <span className="text-xs text-neutral-400 font-medium">Highest Score</span>
-                                <h3 className="text-xl font-bold text-white">
-                                    {stats.highest} <span className="text-xs font-normal text-neutral-400">({stats.topTeam.slice(0, 10)})</span>
-                                </h3>
+                                    <h3 className="text-xl font-bold text-white">
+                                        {stats.highest} <span className="text-xs font-normal text-neutral-400">({blindJudgingEnabled ? 'Redacted' : stats.topTeam.slice(0, 10)})</span>
+                                    </h3>
                             </div>
                         </CardContent>
                     </Card>
@@ -338,7 +340,7 @@ export default function AdminDashboard() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="font-semibold text-white flex items-center gap-2">
-                                                        {sub.team?.name || 'Unknown Team'}
+                                                        {blindJudgingEnabled ? `Team #${idx + 1} (Redacted)` : (sub.team?.name || 'Unknown Team')}
                                                         {sub.aiEvaluation?.plagiarismFlag && (
                                                             <Badge variant="destructive" className="bg-amber-900/40 text-amber-300 text-[10px] px-1.5 py-0 border-amber-800">
                                                                 Cliche Flag

@@ -19,12 +19,14 @@ export async function evaluatePresentationWithGemini(presentationText: string, t
     { "criterion": "Technical Feasibility", "score": number (0-10), "reasoning": "string" },
     { "criterion": "Completeness", "score": number (0-10), "reasoning": "string" }
   `;
+  let maxPossibleScore = 30;
   let requiredSlidesString = `'Tech Stack', 'Business Model', etc.`;
   let additionalInstructions = '';
 
   // Apply Track Overrides
   if (trackSettings) {
     if (trackSettings.rubrics && trackSettings.rubrics.length > 0) {
+      maxPossibleScore = trackSettings.rubrics.reduce((sum, r) => sum + (Number(r.weightage) || 10), 0) || 10;
       criteriaString = trackSettings.rubrics.map((r: { criterion: string; weightage: number; description?: string }) =>
         `    { "criterion": "${r.criterion}", "score": number (0-${r.weightage}), "reasoning": "string (Consider: ${r.description || ''})" }`
       ).join(',\n');
@@ -44,7 +46,7 @@ Furthermore, check for IDEA PLAGIARISM or CLICHE: Utilize your worldly knowledge
 
 Provide a strict JSON response containing the following structure:
 {
-  "totalScore": number (Calculate as the sum of all criteria scores out of the max possible. DO NOT exceed max),
+  "totalScore": number (Normalized overall score from 0 to 100 based on the criteria scores out of ${maxPossibleScore}),
   "summaryForJudges": string (A concise 1-paragraph summary of the project),
   "criteriaScores": [
 ${criteriaString}
@@ -64,7 +66,7 @@ ${presentationText}
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -72,7 +74,16 @@ ${presentationText}
     });
 
     if (response.text) {
-      return JSON.parse(response.text);
+      const cleaned = response.text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      const parsed = JSON.parse(cleaned);
+      // Normalize totalScore consistently onto a 0-100 scale from criteriaScores when available
+      if (Array.isArray(parsed.criteriaScores) && parsed.criteriaScores.length > 0 && maxPossibleScore > 0) {
+        const sum = parsed.criteriaScores.reduce((acc: number, c: { score?: number }) => acc + (Number(c.score) || 0), 0);
+        parsed.totalScore = Math.max(0, Math.min(100, Math.round((sum / maxPossibleScore) * 100)));
+      } else if (typeof parsed.totalScore === 'number') {
+        parsed.totalScore = Math.max(0, Math.min(100, Math.round(parsed.totalScore)));
+      }
+      return parsed;
     }
     throw new Error('No text returned from Gemini API');
   } catch (error) {
@@ -106,7 +117,7 @@ ${githubContext}
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -114,7 +125,8 @@ ${githubContext}
     });
 
     if (response.text) {
-      return JSON.parse(response.text);
+      const cleaned = response.text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      return JSON.parse(cleaned);
     }
     throw new Error('No text returned from Gemini API');
   } catch (error) {

@@ -11,7 +11,7 @@ export async function GET() {
 
         // Fetch submissions and populate the team info
         const submissions = await Submission.find({})
-            .populate('team', 'name problemStatement')
+            .populate('team', 'name problemStatement track githubUrl')
             .sort({ createdAt: -1 })
             .lean(); // Faster to use lean for read-only
 

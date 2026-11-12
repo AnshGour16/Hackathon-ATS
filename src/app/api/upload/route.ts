@@ -100,22 +100,37 @@ export async function POST(req: NextRequest) {
         });
         await submission.save();
 
-        // 3. Extract Text
-        const text = await extractTextFromPDF(buffer);
+        // 3. Extract Text & Evaluate with Gemini
+        try {
+            const text = await extractTextFromPDF(buffer);
 
-        // 4. Send to Gemini for purely Pitch Deck Analysis
-        const evaluation = await evaluatePresentationWithGemini(text, trackSettings);
+            if (!text || !text.trim()) {
+                submission.status = 'FAILED';
+                await submission.save();
+                return NextResponse.json(
+                    { error: 'Could not extract readable text from this PDF. Please upload a text-based PDF presentation.' },
+                    { status: 400 }
+                );
+            }
 
-        // 5. Update Submission
-        submission.aiEvaluation = evaluation;
-        submission.status = 'EVALUATED';
-        await submission.save();
+            // 4. Send to Gemini for purely Pitch Deck Analysis
+            const evaluation = await evaluatePresentationWithGemini(text, trackSettings);
 
-        return NextResponse.json({
-            success: true,
-            submissionId: submission._id,
-            evaluation
-        });
+            // 5. Update Submission
+            submission.aiEvaluation = evaluation;
+            submission.status = 'EVALUATED';
+            await submission.save();
+
+            return NextResponse.json({
+                success: true,
+                submissionId: submission._id,
+                evaluation
+            });
+        } catch (evalError) {
+            submission.status = 'FAILED';
+            await submission.save();
+            throw evalError;
+        }
 
     } catch (error: unknown) {
         console.error('API Error:', error);
