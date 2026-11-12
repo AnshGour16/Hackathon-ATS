@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Submission from '@/models/Submission';
+import '@/models/Team';
 
 export async function GET(
     request: NextRequest,
