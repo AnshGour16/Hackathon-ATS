@@ -60,17 +60,22 @@ export async function POST(req: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Save the file to public/uploads
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-        await mkdir(uploadDir, { recursive: true });
+        // Save the file to public/uploads when writable (local dev); fall back to in-memory on read-only serverless (e.g., Vercel)
+        let fileUrl = 'local-memory';
+        try {
+            const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+            await mkdir(uploadDir, { recursive: true });
 
-        const timestamp = Date.now();
-        const safeFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filename = `${timestamp}-${safeFilename}`;
-        const filePath = path.join(uploadDir, filename);
+            const timestamp = Date.now();
+            const safeFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const filename = `${timestamp}-${safeFilename}`;
+            const filePath = path.join(uploadDir, filename);
 
-        await writeFile(filePath, buffer);
-        const fileUrl = `/uploads/${filename}`;
+            await writeFile(filePath, buffer);
+            fileUrl = `/uploads/${filename}`;
+        } catch (fsError) {
+            console.warn('Skipping local file write (read-only filesystem):', fsError instanceof Error ? fsError.message : fsError);
+        }
 
         // 1. Fetch Track Settings
         let trackSettings = null;

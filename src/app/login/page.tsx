@@ -31,7 +31,11 @@ function LoginForm() {
         });
 
         if (res?.error) {
-            setError('Invalid email or password');
+            const msg =
+                res.error === 'CredentialsSignin' || res.error === 'Invalid credentials'
+                    ? 'Invalid email or password'
+                    : `Authentication failed: ${res.error}`;
+            setError(msg);
             setIsLoading(false);
         } else {
             const from = searchParams.get('from') || '/admin';
