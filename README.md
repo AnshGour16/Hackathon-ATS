@@ -16,9 +16,9 @@ An intelligent, AI-powered judging platform built to completely automate the man
 - **Downloadable PDF Reports:** Instantly generate a branded PDF scorecard with actionable feedback for participants.
 
 ## 🛠️ Technology Stack
-- **Framework:** Next.js 14 (App Router)
+- **Framework:** Next.js 16 (App Router)
 - **Database:** MongoDB & Mongoose
-- **AI Brain:** `gemini-1.5-pro` (Google Generative AI)
+- **AI Brain:** `gemini-2.5-flash` (Google Generative AI)
 - **Styling:** Tailwind CSS + shadcn/ui
 - **Authentication:** NextAuth.js + bcryptjs
 - **PDF Processing:** `pdf2json` and `jspdf`
