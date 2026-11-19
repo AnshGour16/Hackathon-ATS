@@ -1,67 +1,198 @@
-# 🚀 Automated Hackathon Applicant Tracking System (ATS)
+<div align="center">
 
-An intelligent, AI-powered judging platform built to completely automate the manual effort of scoring hackathon submissions. This project leverages Google Gemini AI to analyze pitch decks and GitHub repositories in seconds, providing a standardized, algorithmic score for every team.
+# 🚀 Hackathon ATS
+### AI-Powered Automated Applicant Tracking & Multi-Phase Judging System
 
-## ✨ Features
+[![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-orange?style=for-the-badge&logo=googlegemini)](https://ai.google.dev/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 
-- **Automated Pitch Deck Scoring:** Upload a PDF and our AI instantly ranks it on customizable criteria defined by the Hackathon Admin.
-- **Participant Dashboard:** A dedicated authenticated portal for participants to view their Submission Status, AI Score, Strengths, Weaknesses, and Missing Sections.
-- **Phase-Based Code Unlocking:** Organizers can click "Unlock Code Phase" to dynamically open a GitHub URL input on participant dashboards.
-- **Advanced GitHub Code Analyzer:** Provide a public repository URL to have the backend ping the GitHub API, scrape the `README.md` and `package.json`, and feed the codebase context directly to Gemini for a true **Technical Complexity Score**.
-- **Admin Leaderboard & CSV Export:** A fully protected `/admin` dashboard that sorts submissions by score. Includes a one-click CSV Export tool to download the entire leaderboard.
-- **Idea Plagiarism Checker:** AI scans submissions against open-source cliches and flags highly derivative ideas directly to judges.
-- **"Blind" Judging Mode:** Admins can optionally redact all team names, member PII, and college names from the grading dashboard to completely eliminate bias.
-- **Custom Hackathon Tracks:** Organizers can define tracks (e.g. Web3, Healthcare) with distinct scoring algorithms and mandatory slide templates (e.g. "Missing Revenue Model").
-- **Scorecard Radial Charts:** Visualized skill distribution graphs utilizing Recharts.
-- **Downloadable PDF Reports:** Instantly generate a branded PDF scorecard with actionable feedback for participants.
+<br/>
+
+**Transforming hackathon evaluations from hours of manual fatigue into seconds of algorithmic, bias-free, and actionable intelligence.**
+
+[📖 Architecture](#-architecture--workflow) • [✨ Key Features](#-key-features) • [🛠️ Tech Stack](#️-technology-stack) • [🚀 Quickstart](#-quickstart)
+
+</div>
+
+---
+
+## 📌 The Problem We Are Solving
+
+Hackathon organizing teams and judges face three critical bottlenecks during every event:
+
+1. **Massive Evaluation Latency:** Reviewing hundreds of 10-slide pitch decks manually takes days, leading to judge fatigue, subjective grading, and inconsistent score distributions.
+2. **Zero Actionable Feedback:** Over 90% of participating teams never receive constructive feedback on why their project was rejected or what was missing.
+3. **Evaluation Bias & Plagiarism:** Unconscious bias based on college names or participant backgrounds frequently skews results, while duplicate or cliché ideas (e.g., standard tutorial forks) slip past manual reviewers.
+
+**Hackathon ATS solves this end-to-end** with an automated, two-phase AI pipeline that scores pitch decks against track-specific rubrics, flags cliches, enforces blind judging, and inspects GitHub codebases directly.
+
+---
+
+## ✨ Key Features
+
+### 1. 📑 Automated Pitch Deck Screening
+- Accepts presentation decks in PDF format.
+- Extracts clean text server-side using `pdf2json` without external OCR dependencies.
+- Analyzes problem-solution fit, innovation, and feasibility using **Google Gemini 2.5 Flash**.
+- Computes normalized `0–100` ATS scores and checks for mandatory slides (e.g., *Revenue Model*, *System Architecture*).
+
+### 2. 🛡️ Anti-Cliché & Idea Plagiarism Detector
+- Leverages Gemini's knowledge base to screen submitted proposals against overused hackathon ideas and generic open-source tutorial clones.
+- Surfaces discreet warning badges and detailed rationale on the judge scorecard for derivative submissions.
+
+### 3. 🕶️ "Blind" Judging Mode
+- Organizers can enable Blind Mode with a single toggle.
+- Automatically redacts team names, member identities, student IDs, and repository URLs across the entire admin dashboard, leaderboard, and PDF reports to ensure 100% merit-based evaluation.
+
+### 4. 🐙 Phase 2: Dynamic GitHub Codebase Analysis
+- Organizers can lock or unlock Phase 2 dynamically from the Admin Settings.
+- When unlocked, participants submit their public GitHub repository.
+- The backend pings the GitHub REST API to ingest repository metadata, `README.md`, `package.json` dependencies, and commit history.
+- Evaluates technical complexity (`0–100`), code quality, and development activity.
+
+### 5. 📊 Interactive Visual Scorecards & PDF Export
+- Recharts-powered **Radar Charts** map skill distributions across Innovation, Feasibility, and Completeness.
+- Instant client-side **PDF Scorecard Generation** (`jsPDF`) giving teams a branded summary of their score, strengths, and areas for improvement.
+- One-click **Leaderboard CSV Export** for organizers to download sorted rankings.
+
+---
+
+## 🏗️ Architecture & Workflow
+
+```mermaid
+flowchart TD
+    subgraph Phase 1: Pitch Deck Screening
+        A[Team Submits Deck PDF] --> B[Server-side PDF Extraction]
+        B --> C[Fetch Track Rubrics & Mandatory Rules]
+        C --> D[Gemini 2.5 Flash Evaluator]
+        D --> E[Normalized Score & Feedback Ingestion]
+        E --> F[(MongoDB Atlas)]
+    end
+
+    subgraph Phase 2: Codebase Verification
+        G[Organizers Unlock Phase 2] --> H[Team Submits GitHub URL]
+        H --> I[GitHub REST API Scraper]
+        I --> J[README + Dependencies + Commits]
+        J --> K[Gemini Code Complexity Engine]
+        K --> F
+    end
+
+    subgraph Admin & Participant Portals
+        F --> L[Live Ranked Leaderboard]
+        L --> M[Blind Mode Redaction Filter]
+        L --> N[CSV Leaderboard Export]
+        F --> O[Interactive Radar Scorecard]
+        O --> P[Downloadable PDF Report]
+    end
+```
+
+---
 
 ## 🛠️ Technology Stack
-- **Framework:** Next.js 16 (App Router)
-- **Database:** MongoDB & Mongoose
-- **AI Brain:** `gemini-2.5-flash` (Google Generative AI)
-- **Styling:** Tailwind CSS + shadcn/ui
-- **Authentication:** NextAuth.js + bcryptjs
-- **PDF Processing:** `pdf2json` and `jspdf`
 
-## 🚀 Getting Started
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Framework** | Next.js 16 (App Router, Turbopack / Webpack) | High-performance React SSR & API routes |
+| **Language** | TypeScript 5.0 | End-to-end type safety |
+| **Styling** | Tailwind CSS v4, Lucide Icons | Responsive, modern dark-mode design |
+| **AI Model** | Google Gemini 2.5 Flash (`@google/genai`) | Lightning-fast structured JSON evaluation |
+| **Database** | MongoDB Atlas with Mongoose ODM | Submissions, teams, tracks & settings persistence |
+| **Auth** | NextAuth.js (v4) with bcryptjs | Secure JWT credential authentication for judges |
+| **Document Processing** | `pdf2json` | Serverless-safe text extraction from PDF buffers |
+| **Reporting** | `jsPDF` + `jspdf-autotable` | Client-side branded scorecard PDF generation |
+| **Analytics** | Recharts | Multi-axis radar visualizations |
+| **Deployment** | Node.js Server / Edge Runtime | Production-ready edge deployment |
 
-First, ensure you have set up your `.env.local` variables:
-```bash
-GEMINI_API_KEY=your_key_here
-MONGODB_URI=your_mongodb_connection_string
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_super_secret_string
+---
+
+## 📁 Repository Structure
+
+```
+├── public/                  # Static assets & icons
+├── src/
+│   ├── app/
+│   │   ├── admin/           # Admin leaderboard, settings & scorecard pages
+│   │   ├── api/             # API routes (upload, submissions, auth, github, export)
+│   │   ├── dashboard/       # Participant self-service status portal
+│   │   ├── login/           # Judge / Admin authentication portal
+│   │   ├── submit-code/     # Phase 2 GitHub codebase submission portal
+│   │   ├── layout.tsx       # Root layout & providers
+│   │   └── page.tsx         # Landing page & submission portal
+│   ├── components/          # Reusable UI & presentation components
+│   │   ├── DocumentUpload.tsx # Drag & drop pitch deck uploader
+│   │   ├── ScoreRadarChart.tsx# Recharts radar skill visualization
+│   │   ├── Navbar.tsx       # Navigation bar with role-based links
+│   │   └── ui/              # shadcn/ui primitives
+│   ├── lib/                 # Core utility modules
+│   │   ├── auth.ts          # NextAuth configuration & admin auto-seed
+│   │   ├── gemini.ts        # Gemini 2.5 Flash evaluation prompts & parsers
+│   │   ├── github.ts        # GitHub API repository metadata & commit fetcher
+│   │   ├── mongodb.ts       # Cached MongoDB Mongoose connection handler
+│   │   ├── pdf-generator.ts # jsPDF scorecard generation logic
+│   │   └── pdf-parser.ts    # pdf2json memory buffer extraction
+│   └── models/              # Mongoose schema definitions
+│       ├── Settings.ts      # Global hackathon rules, blind mode & tracks
+│       ├── Submission.ts    # Evaluation scores, criteria & feedback
+│       ├── Team.ts          # Team metadata, tracks & members
+│       └── User.ts          # Authentication roles (Admin, Judge, Participant)
+└── package.json
 ```
 
-Then, boot the local development server:
+---
+
+## 🚀 Quickstart
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/AnshGour16/Hackathon-ATS.git
+cd Hackathon-ATS
+```
+
+### 2. Install dependencies
+```bash
+npm install
+```
+
+### 3. Configure environment variables
+Create a `.env.local` file in the root directory:
+```env
+MONGODB_URI=your_mongodb_connection_string
+GEMINI_API_KEY=your_gemini_api_key
+NEXTAUTH_SECRET=your_nextauth_secret_key
+NEXTAUTH_URL=http://localhost:3000
+```
+
+### 4. Run the development server
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the Upload Portal.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-To generate the default Lead Judge account, navigate to `http://localhost:3000/api/setup-admin`.
-Then log into the `/admin` dashboard using:
+---
+
+## 🔑 Judge / Admin Credentials for Testing
+
+To test the admin features out of the box, use the default credentials:
+- **Portal:** `/login` or click **Judge Login** on the navbar
 - **Email:** `admin@hackathon.com`
 - **Password:** `admin123`
 
-## Learn More
+*(The database automatically initializes this account on your first login attempt if it does not already exist.)*
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛡️ Security & Privacy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Safe Credential Handling:** Passwords hashed with `bcryptjs` (salt factor 10); environment variables sanitized to prevent credential leakages.
+- **Serverless Resilience:** PDF processing operates in-memory with graceful fallback for read-only serverless filesystems.
+- **API Protection:** Admin mutation endpoints enforce NextAuth session role validation.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📄 License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the [MIT License](LICENSE).

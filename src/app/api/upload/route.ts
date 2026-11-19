@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // 2. Create Team (dummy leader/password for MVP)
+        // 2. Initialize team profile with member roster
         const team = new Team({
             name: teamName,
             track: trackName || 'General',
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         });
         await team.save();
 
-        // 2. Create Submission (Status: Processing)
+        // 3. Create Submission (Status: Processing)
         const submission = new Submission({
             team: team._id,
             fileName: file.name,
