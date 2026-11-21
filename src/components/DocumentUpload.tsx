@@ -71,11 +71,17 @@ export default function DocumentUpload() {
         setIsDragging(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             const droppedFile = e.dataTransfer.files[0];
-            if (droppedFile.type === 'application/pdf' || droppedFile.name.endsWith('.pdf')) {
+            const lower = droppedFile.name.toLowerCase();
+            const isValid = lower.endsWith('.pdf') || lower.endsWith('.pptx') || lower.endsWith('.ppt') ||
+                droppedFile.type === 'application/pdf' ||
+                droppedFile.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+                droppedFile.type === 'application/vnd.ms-powerpoint';
+
+            if (isValid) {
                 setFile(droppedFile);
                 setErrorMessage(null);
             } else {
-                setErrorMessage('Please drop a valid PDF file.');
+                setErrorMessage('Please drop a valid presentation file: PDF (.pdf), PowerPoint (.pptx), or legacy PowerPoint (.ppt).');
             }
         }
     };
@@ -415,7 +421,10 @@ export default function DocumentUpload() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="font-semibold text-white">Presentation File (PDF) *</Label>
+                        <div className="flex items-center justify-between">
+                            <Label className="font-semibold text-white">Project Presentation *</Label>
+                            <span className="text-xs text-neutral-400">PDF, PPTX, or PPT (Max 25MB)</span>
+                        </div>
                         <div
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
@@ -426,7 +435,7 @@ export default function DocumentUpload() {
                             <Input
                                 id="file-upload"
                                 type="file"
-                                accept=".pdf"
+                                accept=".pdf,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
                                 className="hidden"
                                 onChange={handleFileChange}
                                 disabled={isUploading}
@@ -437,7 +446,12 @@ export default function DocumentUpload() {
                                         <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                                             <FileText className="h-6 w-6" />
                                         </div>
-                                        <span className="font-semibold text-sm text-white">{file.name}</span>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Badge variant="outline" className="uppercase text-[10px] px-2 py-0.5 border-primary/40 text-primary">
+                                                {file.name.split('.').pop() || 'FILE'}
+                                            </Badge>
+                                            <span className="font-semibold text-sm text-white">{file.name}</span>
+                                        </div>
                                         <span className="text-xs text-neutral-400">{(file.size / 1024 / 1024).toFixed(2)} MB • Ready to analyze</span>
                                     </>
                                 ) : (
@@ -446,7 +460,7 @@ export default function DocumentUpload() {
                                             <UploadCloud className="h-6 w-6" />
                                         </div>
                                         <span className="font-medium text-sm text-neutral-200">Click to upload or drag & drop</span>
-                                        <span className="text-xs text-neutral-500">PDF presentations up to 10MB</span>
+                                        <span className="text-xs text-neutral-500">Supports .pdf, .pptx, and .ppt presentations up to 25MB</span>
                                     </>
                                 )}
                             </Label>

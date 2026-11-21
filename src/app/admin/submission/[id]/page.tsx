@@ -110,7 +110,7 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                         {data.fileUrl && data.fileUrl !== 'local-memory' && (
                             <Button asChild variant="outline" className="border-neutral-700 text-neutral-300 hover:text-white">
                                 <a href={data.fileUrl} target="_blank" rel="noopener noreferrer">
-                                    <FileText className="w-4 h-4 mr-2" /> Original PDF
+                                    <FileText className="w-4 h-4 mr-2" /> View {data.fileFormat?.toUpperCase() || 'Deck'}
                                 </a>
                             </Button>
                         )}

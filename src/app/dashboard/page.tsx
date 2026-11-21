@@ -61,6 +61,10 @@ interface ISubmissionData {
     status: 'PENDING' | 'AI_PROCESSING' | 'EVALUATED' | 'FAILED';
     fileName?: string;
     fileUrl?: string;
+    fileFormat?: string;
+    slideCount?: number;
+    hasVisualAssets?: boolean;
+    extractionError?: string;
     aiEvaluation?: IAI;
 }
 
@@ -74,6 +78,7 @@ export default function ParticipantDashboard() {
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [showReupload, setShowReupload] = useState(false);
 
     // Phase 2 Code Submission State
     const [githubUrl, setGithubUrl] = useState('');
@@ -278,15 +283,24 @@ export default function ParticipantDashboard() {
                 )}
 
                 {/* --- Pitch Deck Upload or Evaluation Section --- */}
-                {!submission ? (
+                {!submission || submission.status === 'FAILED' || showReupload ? (
                     <Card className="border-primary/30 bg-neutral-900/60 backdrop-blur-md">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg text-white">
-                                <UploadCloud className="w-5 h-5 text-primary" /> Upload Project Presentation
-                            </CardTitle>
-                            <CardDescription>
-                                Upload your PDF presentation deck to run AI screening and qualify for Round 2.
-                            </CardDescription>
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2 text-lg text-white">
+                                        <UploadCloud className="w-5 h-5 text-primary" /> {submission?.status === 'FAILED' ? 'Retry Presentation Upload' : showReupload ? 'Re-upload Presentation' : 'Upload Project Presentation'}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Upload your presentation in PDF (.pdf), PowerPoint (.pptx), or legacy PowerPoint (.ppt) format.
+                                    </CardDescription>
+                                </div>
+                                {showReupload && (
+                                    <Button variant="ghost" size="sm" onClick={() => setShowReupload(false)} className="text-neutral-400 hover:text-white">
+                                        Cancel
+                                    </Button>
+                                )}
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handlePresentationUpload} className="space-y-4">
@@ -294,22 +308,45 @@ export default function ParticipantDashboard() {
                                     <FileText className="w-10 h-10 text-primary mx-auto mb-2 opacity-60" />
                                     <input
                                         type="file"
-                                        accept=".pdf"
+                                        accept=".pdf,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
                                         id="deckUpload"
-                                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                                        onChange={(e) => {
+                                            setUploadFile(e.target.files?.[0] || null);
+                                            setUploadError(null);
+                                        }}
                                         className="hidden"
                                     />
-                                    <label htmlFor="deckUpload" className="cursor-pointer">
-                                        <span className="text-sm font-semibold text-white hover:text-primary">
-                                            {uploadFile ? uploadFile.name : 'Click to select presentation deck (PDF)'}
-                                        </span>
-                                        <p className="text-xs text-neutral-500 mt-1">Maximum file size: 25MB</p>
+                                    <label htmlFor="deckUpload" className="cursor-pointer block">
+                                        {uploadFile ? (
+                                            <div className="space-y-1">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Badge variant="outline" className="uppercase text-[10px] px-2 py-0.5 border-primary/40 text-primary">
+                                                        {uploadFile.name.split('.').pop() || 'FILE'}
+                                                    </Badge>
+                                                    <span className="text-sm font-semibold text-white">{uploadFile.name}</span>
+                                                </div>
+                                                <p className="text-xs text-neutral-400">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB • Ready to analyze</p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <span className="text-sm font-semibold text-white hover:text-primary">
+                                                    Click to select presentation deck (PDF, PPTX, or PPT)
+                                                </span>
+                                                <p className="text-xs text-neutral-500 mt-1">Supports .pdf, .pptx, and .ppt up to 25MB</p>
+                                            </>
+                                        )}
                                     </label>
                                 </div>
 
                                 {uploadError && (
                                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 text-sm">
                                         {uploadError}
+                                    </div>
+                                )}
+
+                                {submission?.status === 'FAILED' && !uploadError && (
+                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 text-sm">
+                                        Previous evaluation failed: {submission.extractionError || 'Unable to parse presentation. Please upload a valid presentation file.'}
                                     </div>
                                 )}
 
@@ -320,7 +357,7 @@ export default function ParticipantDashboard() {
                                 >
                                     {isUploading ? (
                                         <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> AI Analyzing Pitch Deck...
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Extracting Slides & Running AI Evaluation...
                                         </>
                                     ) : (
                                         'Submit Presentation for AI Evaluation'
@@ -334,7 +371,7 @@ export default function ParticipantDashboard() {
                         <CardContent className="py-12 text-center text-neutral-400">
                             <Brain className="w-12 h-12 mx-auto mb-4 text-primary animate-pulse" />
                             <h3 className="text-lg font-medium text-white mb-1">AI is analyzing your presentation...</h3>
-                            <p className="text-sm">Evaluating structure, slide completeness, and innovation against track rubrics.</p>
+                            <p className="text-sm">Extracting slides, tables, and evaluating innovation against track rubrics.</p>
                             <Button onClick={fetchDashboardData} variant="outline" size="sm" className="mt-4 border-neutral-700">
                                 Refresh Status
                             </Button>
@@ -342,6 +379,30 @@ export default function ParticipantDashboard() {
                     </Card>
                 ) : (
                     <>
+                        {/* Submission Metadata Banner */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 bg-neutral-900/50 border border-neutral-800 px-5 py-3 rounded-xl text-xs text-neutral-400">
+                            <div className="flex items-center gap-3">
+                                <FileText className="w-4 h-4 text-primary" />
+                                <span className="text-white font-medium">{submission.fileName || 'Presentation Deck'}</span>
+                                {submission.fileFormat && (
+                                    <Badge variant="outline" className="uppercase text-[10px] px-1.5 py-0 border-primary/40 text-primary">
+                                        {submission.fileFormat}
+                                    </Badge>
+                                )}
+                                {submission.slideCount && (
+                                    <span className="text-neutral-400">• {submission.slideCount} Slides Extracted</span>
+                                )}
+                                {submission.hasVisualAssets && (
+                                    <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                        Visual assets flagged
+                                    </Badge>
+                                )}
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => setShowReupload(true)} className="h-7 text-xs text-neutral-300 hover:text-white">
+                                Re-upload Presentation
+                            </Button>
+                        </div>
+
                         {/* Executive Summary */}
                         <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
                             <CardHeader>

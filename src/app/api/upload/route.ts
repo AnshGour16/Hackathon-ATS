@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Team from '@/models/Team';
 import Submission from '@/models/Submission';
-import { extractTextFromPDF } from '@/lib/pdf-parser';
+import { parsePresentationDocument } from '@/lib/document-parser';
 import { evaluatePresentationWithGemini } from '@/lib/gemini';
 import { ITrack } from '@/models/Hackathon';
 import Hackathon from '@/models/Hackathon';
@@ -129,21 +129,32 @@ export async function POST(req: NextRequest) {
         }
         await submission.save();
 
-        // 3. Extract Text & Evaluate with Gemini using specific Hackathon prompts & Theme
+        // 3. Extract Text & Parse Document (PDF, PPTX, or PPT)
+        let parseResult;
         try {
-            const text = await extractTextFromPDF(buffer);
+            parseResult = await parsePresentationDocument(buffer, file.name);
+            submission.fileFormat = parseResult.format;
+            submission.slideCount = parseResult.slideCount;
+            submission.extractedTextLength = parseResult.text.length;
+            submission.extractionStatus = 'SUCCESS';
+            submission.hasVisualAssets = Boolean(parseResult.hasVisualAssetsOnlyWarning);
+            submission.extractionError = undefined;
+            await submission.save();
+        } catch (parseError) {
+            submission.status = 'FAILED';
+            submission.extractionStatus = 'FAILED';
+            submission.extractionError = parseError instanceof Error ? parseError.message : 'Document extraction failed';
+            await submission.save();
 
-            if (!text || !text.trim()) {
-                submission.status = 'FAILED';
-                await submission.save();
-                return NextResponse.json(
-                    { error: 'Could not extract readable text from this PDF. Please upload a text-based PDF presentation.' },
-                    { status: 400 }
-                );
-            }
+            return NextResponse.json(
+                { error: parseError instanceof Error ? parseError.message : 'Document extraction failed' },
+                { status: 400 }
+            );
+        }
 
-            // 4. Send to Gemini with full Hackathon Theme, Description, & Custom AI Prompt
-            const evaluation = await evaluatePresentationWithGemini(text, {
+        // 4. Send to Gemini with full Hackathon Theme, Description, & Custom AI Prompt
+        try {
+            const evaluation = await evaluatePresentationWithGemini(parseResult.text, {
                 trackSettings,
                 hackathonName: hackathon.name,
                 hackathonTheme: hackathon.theme,
@@ -159,6 +170,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
                 success: true,
                 submissionId: submission._id,
+                fileFormat: parseResult.format,
+                slideCount: parseResult.slideCount,
+                hasVisualAssets: parseResult.hasVisualAssetsOnlyWarning,
                 evaluation
             });
         } catch (evalError) {
