@@ -1,7 +1,7 @@
 <div align="center">
 
 # 🚀 Hackathon ATS
-### Multi-Event Applicant Tracking, Custom AI Evaluation & Judging Platform
+### Multi-Theme Applicant Tracking, AI Pitch Deck Screening & Judging Platform
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -11,9 +11,9 @@
 
 <br/>
 
-**Transforming hackathon screening and evaluation from hours of manual fatigue into seconds of algorithmic, multi-tenant, bias-free, and actionable intelligence.**
+**Transforming hackathon screening and evaluation from hours of manual fatigue into seconds of algorithmic, multi-theme, bias-free, and actionable intelligence.**
 
-[📖 Architecture](#-architecture--workflow) • [✨ Key Features](#-key-features) • [🛠️ Tech Stack](#️-technology-stack) • [🚀 Quickstart](#-quickstart)
+[📖 How It Works](#-how-it-works-the-shortlisting-pipeline) • [✨ Key Features](#-key-features) • [🏗️ Architecture](#-architecture--workflow) • [🛠️ Tech Stack](#️-technology-stack) • [🚀 Quickstart](#-quickstart)
 
 </div>
 
@@ -21,48 +21,84 @@
 
 ## 📌 The Problem We Are Solving
 
-Hackathon organizing teams and judges face critical bottlenecks during every event:
+In every hackathon with 50+ or 100+ participating teams across multiple themes, organizers and judges face critical bottlenecks:
 
-1. **Massive Evaluation Latency:** Reviewing hundreds of pitch decks manually takes days, leading to judge fatigue, subjective grading, and inconsistent score distributions.
-2. **One-Size-Fits-All Scoring:** Different hackathons have distinct themes, focus areas, and evaluation rules. Generic scoring cannot evaluate whether an idea adheres to a specific theme (e.g., healthcare privacy vs. web3 decentralization).
-3. **Zero Actionable Feedback:** Over 90% of participating teams never receive constructive feedback on why their project was rejected or what was missing.
-4. **Evaluation Bias & Plagiarism:** Unconscious bias based on college names or participant backgrounds frequently skews results, while duplicate or cliché ideas slip past manual reviewers.
+1. **Massive Evaluation Latency:** Reviewing 50+ 10-slide pitch decks manually takes 2–3 full days, leading to judge fatigue, delayed round announcements, and subjective grading.
+2. **Shortlisting Bottleneck:** Selecting the **Top 25 teams** to advance to the coding round requires aggregating scores across different judges and themes, causing errors and bias.
+3. **Theme & Domain Inconsistencies:** A single generic rubric cannot fairly judge an AI agent project versus a FinTech smart contract or a HealthTech diagnostic app.
+4. **Plagiarism & Tutorial Forks:** Cliché ideas and generic open-source forks frequently slip past manual reviewers.
+5. **Zero Actionable Feedback:** Over 90% of participating teams never receive constructive feedback on why their project was not shortlisted.
 
-**Hackathon ATS solves this end-to-end** with a multi-hackathon architecture featuring custom organizer AI prompts, automated pitch deck screening, anti-cliché detection, blind judging, and dynamic GitHub codebase inspection.
+**Hackathon ATS solves this end-to-end** with an automated screening pipeline that evaluates pitch decks against theme-specific rubrics, flags cliches, enforces blind judging, algorithmically determines the **Top 25 Shortlist**, and unlocks Phase 2 GitHub codebase verification.
+
+---
+
+## 🔄 How It Works: The Shortlisting Pipeline
+
+```
+  50 Registered Teams                    Automated AI Screening                      Leaderboard & Shortlist
+┌──────────────────────┐               ┌─────────────────────────┐               ┌──────────────────────────────┐
+│  Team Leader Enters: │               │  Gemini 2.5 Flash       │               │  Live Ranked Leaderboard     │
+│  • Team Info & Track │ ────────────> │  • Reads PPT Text       │ ────────────> │  • 🏆 Top 25 Qualifiers Tag  │
+│  • Problem Statement │  Uploads PDF  │  • Theme-Specific Score │               │  • Cutoff Score Computed     │
+│  • Pitch Deck (PDF)  │               │  • Plagiarism & Cliches │               │  • One-Click Shortlist CSV   │
+└──────────────────────┘               └─────────────────────────┘               └──────────────┬───────────────┘
+                                                                                                │ Organizers Unlock
+                                                                                                ▼ Phase 2
+                                                                                 ┌──────────────────────────────┐
+                                                                                 │  Phase 2: Codebase Round     │
+                                                                                 │  Top 25 submit GitHub URL    │
+                                                                                 │  for automated code review   │
+                                                                                 └──────────────────────────────┘
+```
+
+1. **Theme Selection:** Teams choose from 5 built-in hackathon themes:
+   * 🤖 **AI & Machine Learning** (LLMs, Agentic Workflows, Computer Vision)
+   * 💳 **FinTech & Web3** (DeFi, Security, Fraud Detection, Smart Contracts)
+   * 🏥 **HealthTech & Life Sciences** (Clinical Utility, HIPAA, Diagnostics)
+   * 🌿 **Smart Cities & Sustainability** (IoT, Clean Energy, Urban Efficiency)
+   * 💡 **Open Innovation** (EdTech, DevTools, Social Impact)
+2. **Instant AI Scoring:** Gemini 2.5 Flash evaluates the deck in seconds against the chosen theme's rubrics (Innovation, Feasibility, Completeness) and checks for mandatory slides.
+3. **Automated Cutoff & Top 25 Shortlist:** The system ranks all submissions, establishes the cutoff score, and highlights the **Top 25 Qualified** teams on the leaderboard.
+4. **Phase 2 Codebase Round:** Organizers unlock Phase 2 so shortlisted teams can submit their GitHub repository for deep codebase, dependency, and commit-history inspection.
 
 ---
 
 ## ✨ Key Features
 
-### 1. 🎪 Multi-Hackathon Hub with Custom AI Evaluation Prompts
-- **Multi-Tenant Event Management:** Create and manage multiple distinct hackathons simultaneously from the `/admin/hackathons` portal.
-- **Event-Specific Themes & Context:** Configure custom titles, problem descriptions, and themes (e.g., *AI for Sustainability*, *FinTech Innovation*).
-- **Custom AI Prompt Tuning:** Organizers can inject custom prompt rules directly into the Gemini evaluation engine (e.g., *"Heavily reward real-world data validation; heavily penalize solutions lacking privacy safeguards"*).
-- **Independent Phase & Blind Controls:** Toggle Phase 2 code submissions and blind judging independently per hackathon.
+### 1. 🏆 Automated Top 25 Shortlist & Cutoff Engine
+- **One-Click Shortlist Filter:** Instantly switch between `All Teams`, `🏆 Top 25 Shortlist`, and `⭐ Top 10 Finalists`.
+- **Visual Qualification Badges:** Teams ranked in the Top 25 automatically receive a green **`🏆 Top 25 Qualified`** badge.
+- **Dynamic Cutoff Calculation:** Displays the live minimum score required to qualify for Round 2.
+- **Dedicated Shortlist Export:** Download a sorted CSV of only the Top 25 shortlisted teams for announcements.
 
-### 2. 📑 Automated Pitch Deck Screening
+### 2. 🎪 Multi-Theme & Multi-Hackathon Support
+- **5 Built-In Domain Themes:** Pre-configured rubrics and required slides tailored for AI, FinTech, HealthTech, Smart Cities, and Open Innovation.
+- **Custom Organizer Prompts:** Organizers can tune Gemini's evaluation criteria (e.g., *"Heavily penalize ideas lacking user privacy; reward production prototypes"*).
+- **Multi-Event Portal (`/admin/hackathons`):** Run multiple independent hackathons simultaneously with distinct themes and rules.
+
+### 3. 📑 Automated Pitch Deck Screening
 - Accepts presentation decks in PDF format.
 - Extracts clean text server-side using `pdf2json` without external OCR dependencies.
-- Evaluates submissions using **Google Gemini 2.5 Flash** against dynamic, hackathon-specific track rubrics and mandatory slide requirements (e.g., *Revenue Model*, *System Architecture*).
-- Computes normalized `0–100` ATS scores with strengths, weaknesses, and clear recommendations.
+- Analyzes problem-solution fit, innovation, and technical feasibility using **Google Gemini 2.5 Flash**.
+- Computes normalized `0–100` ATS scores and checks for mandatory slides (e.g., *Architecture*, *Data Pipeline*).
 
-### 3. 🛡️ Anti-Cliché & Idea Plagiarism Detector
-- Leverages Gemini's contextual knowledge base to screen submitted proposals against overused hackathon ideas and generic open-source tutorial clones.
+### 4. 🛡️ Anti-Cliché & Idea Plagiarism Detector
+- Leverages Gemini's knowledge base to screen submitted proposals against overused hackathon ideas and generic open-source tutorial clones.
 - Surfaces discreet warning badges and detailed rationale on the judge scorecard for derivative submissions.
 
-### 4. 🕶️ "Blind" Judging Mode
-- Organizers can enable Blind Mode with a single toggle per event.
-- Automatically redacts team names, member identities, student IDs, and repository URLs across the admin dashboard, leaderboard, and PDF reports to ensure 100% merit-based evaluation.
+### 5. 🕶️ "Blind" Judging Mode
+- Organizers can enable Blind Mode with a single toggle.
+- Automatically redacts team names, member identities, student IDs, and repository URLs across the entire admin dashboard, leaderboard, and PDF reports to ensure 100% merit-based evaluation.
 
-### 5. 🐙 Phase 2: Dynamic GitHub Codebase Analysis
-- Organizers can unlock Phase 2 code evaluation when teams qualify for the coding round.
+### 6. 🐙 Phase 2: Dynamic GitHub Codebase Analysis
+- Organizers unlock Phase 2 code evaluation for shortlisted qualifiers.
 - Ingests repository metadata, `README.md`, dependencies (`package.json`), and commit histories via the GitHub REST API.
 - Evaluates technical complexity (`0–100`), architecture quality, and authentic development activity.
 
-### 6. 📊 Interactive Visual Scorecards & PDF Export
+### 7. 📊 Interactive Visual Scorecards & PDF Export
 - Recharts-powered **Radar Charts** map skill distributions across Innovation, Feasibility, and Completeness.
 - Instant client-side **PDF Scorecard Generation** (`jsPDF`) giving teams a branded summary of their score, strengths, and areas for improvement.
-- One-click **Leaderboard CSV Export** with hackathon filtering for organizers.
 
 ---
 
@@ -70,34 +106,32 @@ Hackathon organizing teams and judges face critical bottlenecks during every eve
 
 ```mermaid
 flowchart TD
-    subgraph Multi-Hackathon Management
-        O[Organizer Portal] -->|Define Theme, Description & AI Prompt| H[Hackathon Config]
-        H -->|Configure Custom Tracks & Rubrics| TR[Track Rubrics]
+    subgraph Multi-Theme Hackathon Setup
+        O[Organizer Portal] -->|Configure 5 Themes & AI Prompts| H[Hackathon Config]
+        H -->|Theme-Specific Weights & Mandatory Slides| TR[Track Rubrics]
     end
 
     subgraph Phase 1: Pitch Deck Screening
-        T[Team Submits Deck PDF] -->|Select Hackathon & Track| B[Server-side PDF Extraction]
-        B --> D[Gemini 2.5 Flash Evaluation Engine]
-        H -.->|Injects Theme & Custom Prompt| D
+        T[50 Teams Register & Submit Deck] -->|Select Theme & Drop PDF| B[Server-side PDF Extraction]
+        B --> D[Gemini 2.5 Flash Engine]
+        H -.->|Injects Theme & Custom Rules| D
         TR -.->|Injects Rubrics & Weights| D
         D --> E[Normalized Score & Feedback]
         E --> DB[(MongoDB Atlas)]
     end
 
-    subgraph Phase 2: Codebase Verification
-        O -.->|Unlock Phase 2| GH_SUB[Team Submits GitHub URL]
-        GH_SUB --> GH_API[GitHub REST API Scraper]
-        GH_API --> GH_EVA[Gemini Code Complexity Engine]
-        H -.->|Injects Event Context| GH_EVA
-        GH_EVA --> DB
+    subgraph Leaderboard & Top 25 Shortlisting
+        DB --> L[Live Ranked Leaderboard]
+        L --> SL[🏆 Top 25 Shortlist Filter]
+        L --> BL[Blind Mode Redaction]
+        SL --> EXP[📥 Export Top 25 Shortlist CSV]
     end
 
-    subgraph Admin & Participant Portals
-        DB --> L[Live Ranked Leaderboard & Filter]
-        L --> M[Blind Mode Redaction Filter]
-        L --> N[CSV Leaderboard Export]
-        DB --> SC[Interactive Radar Scorecard]
-        SC --> PDF[Downloadable PDF Report]
+    subgraph Phase 2: Codebase Verification
+        O -.->|Unlock Phase 2 for Top 25| GH_SUB[Top 25 Teams Submit GitHub URL]
+        GH_SUB --> GH_API[GitHub REST API Scraper]
+        GH_API --> GH_EVA[Gemini Code Complexity Engine]
+        GH_EVA --> DB
     end
 ```
 
@@ -130,20 +164,20 @@ flowchart TD
 │   │   │   ├── hackathons/  # Multi-hackathon management portal (CRUD, prompts, tracks)
 │   │   │   ├── settings/    # Event settings & rubric management
 │   │   │   ├── submission/  # Detailed submission scorecards & radar view
-│   │   │   └── page.tsx     # Live ranked leaderboard with hackathon filters
+│   │   │   └── page.tsx     # Live ranked leaderboard with Top 25 shortlist filter
 │   │   ├── api/             # RESTful API endpoints
 │   │   │   ├── hackathons/  # Hackathon CRUD endpoints with dynamic slug generation
 │   │   │   ├── upload/      # Pitch deck upload & Gemini evaluation pipeline
 │   │   │   ├── submit-code/ # Phase 2 GitHub repository analysis
-│   │   │   ├── submissions/ # Filtered submissions by hackathon & team
+│   │   │   ├── submissions/ # Filtered submissions by hackathon, theme & team
 │   │   │   ├── teams/       # Team retrieval & metadata
-│   │   │   ├── export/      # CSV leaderboard export
+│   │   │   ├── export/      # CSV leaderboard & Top 25 export
 │   │   │   └── auth/        # NextAuth authentication handlers
 │   │   ├── dashboard/       # Participant self-service status portal
 │   │   ├── login/           # Judge / Admin authentication portal
 │   │   ├── submit-code/     # Phase 2 GitHub codebase submission portal
 │   │   ├── layout.tsx       # Root layout & providers
-│   │   └── page.tsx         # Participant landing page with hackathon selector
+│   │   └── page.tsx         # Participant landing page with theme selector
 │   ├── components/          # Reusable UI & presentation components
 │   │   ├── DocumentUpload.tsx # Pitch deck uploader with dynamic hackathon briefs
 │   │   ├── ScoreRadarChart.tsx# Recharts radar skill visualization
