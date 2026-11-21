@@ -22,6 +22,12 @@ export interface IHackathon extends Document {
     blindJudgingEnabled: boolean;
     tracks: ITrack[];
     isActive: boolean;
+    shortlistLimit?: number;
+    shortlistingMode?: 'OVERALL' | 'THEME_WISE';
+    themeShortlistLimits?: { theme: string; limit: number }[];
+    shortlistingStatus?: 'NOT_SHORTLISTED' | 'SHORTLISTED';
+    shortlistedAt?: Date;
+    shortlistCount?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -43,7 +49,16 @@ const HackathonSchema: Schema = new Schema({
             description: { type: String }
         }]
     }],
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    shortlistLimit: { type: Number, default: 25 },
+    shortlistingMode: { type: String, enum: ['OVERALL', 'THEME_WISE'], default: 'OVERALL' },
+    themeShortlistLimits: [{
+        theme: { type: String },
+        limit: { type: Number }
+    }],
+    shortlistingStatus: { type: String, enum: ['NOT_SHORTLISTED', 'SHORTLISTED'], default: 'NOT_SHORTLISTED' },
+    shortlistedAt: { type: Date },
+    shortlistCount: { type: Number, default: 0 }
 }, { timestamps: true });
 
 export default mongoose.models.Hackathon || mongoose.model<IHackathon>('Hackathon', HackathonSchema);

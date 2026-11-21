@@ -21,6 +21,9 @@ export interface ITeam extends Document {
     members: ITeamMember[];
     githubUrl?: string;
     isShortlisted: boolean;
+    shortlistRank?: number;
+    shortlistedAt?: Date;
+    shortlistRound?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -43,7 +46,10 @@ const TeamSchema: Schema = new Schema({
         rollNo: { type: String }
     }],
     githubUrl: { type: String },
-    isShortlisted: { type: Boolean, default: false }
+    isShortlisted: { type: Boolean, default: false },
+    shortlistRank: { type: Number },
+    shortlistedAt: { type: Date },
+    shortlistRound: { type: Number, default: 1 }
 }, { timestamps: true });
 
 export default mongoose.models.Team || mongoose.model<ITeam>('Team', TeamSchema);

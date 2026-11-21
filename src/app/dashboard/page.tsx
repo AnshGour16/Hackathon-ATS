@@ -32,11 +32,15 @@ interface ITeamData {
     members: ITeamMember[];
     githubUrl?: string;
     isShortlisted: boolean;
+    shortlistRank?: number;
+    shortlistedAt?: string | Date;
     hackathon?: {
         name: string;
         theme: string;
         description: string;
         isCodeSubmissionOpen: boolean;
+        shortlistingStatus?: string;
+        shortlistCount?: number;
     };
 }
 
@@ -231,9 +235,17 @@ export default function ParticipantDashboard() {
                             <Badge variant="outline" className="border-indigo-500/50 text-indigo-300">
                                 {team.track} Track
                             </Badge>
-                            {team.isShortlisted && (
+                            {team.isShortlisted ? (
                                 <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                    🏆 Shortlisted for Round 2
+                                    🏆 Shortlisted for Round 2 (Rank #{team.shortlistRank || 1})
+                                </Badge>
+                            ) : team.hackathon?.shortlistingStatus === 'SHORTLISTED' ? (
+                                <Badge variant="outline" className="border-neutral-700 text-neutral-400">
+                                    Not Shortlisted for Round 2
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="border-primary/30 text-primary">
+                                    Round 1 Screening
                                 </Badge>
                             )}
                         </div>
@@ -261,6 +273,26 @@ export default function ParticipantDashboard() {
                         </div>
                     )}
                 </div>
+
+                {/* Shortlist Qualification Alert Banner */}
+                {team.isShortlisted ? (
+                    <div className="bg-emerald-950/40 border border-emerald-500/40 p-4 rounded-xl flex items-center gap-3 text-emerald-300 text-sm animate-in fade-in">
+                        <Trophy className="w-6 h-6 text-emerald-400 shrink-0" />
+                        <div>
+                            <span className="font-bold text-white text-base">Congratulations! Your team is Shortlisted for Round 2!</span>
+                            <p className="text-emerald-400/80 text-xs mt-0.5">
+                                Official Rank: #{team.shortlistRank || 1} • Qualified on {team.shortlistedAt ? new Date(team.shortlistedAt).toLocaleDateString() : 'Round 1 Finalization'}.
+                            </p>
+                        </div>
+                    </div>
+                ) : team.hackathon?.shortlistingStatus === 'SHORTLISTED' && submission?.status === 'EVALUATED' ? (
+                    <div className="bg-neutral-900/60 border border-neutral-800 p-4 rounded-xl text-neutral-400 text-sm">
+                        <span className="font-semibold text-neutral-300">Round 1 Shortlisting Concluded</span>
+                        <p className="text-xs text-neutral-500 mt-1">
+                            Your presentation was evaluated with an ATS score of {ai?.totalScore ?? 0}/100. The top {team.hackathon.shortlistCount || 'selected'} teams have advanced to Round 2.
+                        </p>
+                    </div>
+                ) : null}
 
                 {/* Team Members Roster */}
                 {team.members && team.members.length > 0 && (

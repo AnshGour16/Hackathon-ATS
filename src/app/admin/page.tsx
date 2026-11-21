@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ExternalLink, RefreshCw, Download, Search, Trophy, Users, BarChart2, AlertTriangle, Sparkles, Filter } from 'lucide-react';
+import {
+    ExternalLink, RefreshCw, Download, Search, Trophy, Users,
+    BarChart2, AlertTriangle, Sparkles, Filter, CheckCircle2, Sliders, ChevronDown, ChevronUp
+} from 'lucide-react';
 import Link from 'next/link';
 
 import { ISubmission } from '@/models/Submission';
@@ -14,7 +17,16 @@ import { ITeam } from '@/models/Team';
 
 interface ISubmissionWithTeam extends Omit<ISubmission, 'team' | 'hackathon'> {
     team: ITeam;
-    hackathon?: { _id: string; name: string; theme: string };
+    hackathon?: {
+        _id: string;
+        name: string;
+        theme: string;
+        shortlistingStatus?: string;
+        shortlistLimit?: number;
+        shortlistingMode?: string;
+        shortlistedAt?: string;
+        shortlistCount?: number;
+    };
 }
 
 interface IHackathonBrief {
@@ -24,6 +36,27 @@ interface IHackathonBrief {
     theme: string;
     isCodeSubmissionOpen: boolean;
     blindJudgingEnabled: boolean;
+    shortlistingStatus?: string;
+    shortlistLimit?: number;
+    shortlistingMode?: string;
+    shortlistedAt?: string;
+    shortlistCount?: number;
+}
+
+interface IQualifyingPreviewTeam {
+    rank: number;
+    teamId: string;
+    teamName: string;
+    track: string;
+    projectTitle?: string;
+    score: number;
+}
+
+interface IShortlistPreviewResult {
+    totalEligible: number;
+    qualifyingCount: number;
+    cutoffScore: number;
+    qualifyingTeams: IQualifyingPreviewTeam[];
 }
 
 export default function AdminDashboard() {
@@ -39,7 +72,17 @@ export default function AdminDashboard() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTrack, setSelectedTrack] = useState('ALL');
     const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST'>('SCORE_DESC');
-    const [shortlistView, setShortlistView] = useState<'ALL' | 'TOP_25' | 'TOP_10'>('ALL');
+    const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'SHORTLISTED' | 'NOT_SHORTLISTED'>('ALL');
+
+    // Organizer Shortlisting Controls State
+    const [showShortlistPanel, setShowShortlistPanel] = useState(true);
+    const [shortlistMode, setShortlistMode] = useState<'OVERALL' | 'THEME_WISE'>('OVERALL');
+    const [shortlistLimit, setShortlistLimit] = useState<number>(25);
+    const [themeQuotas, setThemeQuotas] = useState<Record<string, number>>({});
+    const [previewData, setPreviewData] = useState<IShortlistPreviewResult | null>(null);
+    const [isPreviewing, setIsPreviewing] = useState(false);
+    const [isApplyingShortlist, setIsApplyingShortlist] = useState(false);
+    const [shortlistNotification, setShortlistNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const fetchHackathons = async () => {
         try {
@@ -53,7 +96,7 @@ export default function AdminDashboard() {
         }
     };
 
-    const fetchSettings = async (hId: string = selectedHackathonId) => {
+    const fetchSettings = useCallback(async (hId: string = selectedHackathonId) => {
         try {
             const url = hId !== 'ALL' ? `/api/settings?hackathonId=${hId}` : '/api/settings';
             const res = await fetch(url);
@@ -65,6 +108,37 @@ export default function AdminDashboard() {
         } catch (error) {
             console.error('Failed to fetch settings:', error);
         }
+    }, [selectedHackathonId]);
+
+    const fetchSubmissions = useCallback(async (hId: string = selectedHackathonId) => {
+        setLoading(true);
+        try {
+            const url = hId !== 'ALL' ? `/api/submissions?hackathonId=${hId}` : '/api/submissions';
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.success) {
+                setSubmissions(data.data || []);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedHackathonId]);
+
+    useEffect(() => {
+        fetchHackathons();
+        fetchSubmissions('ALL');
+        fetchSettings('ALL');
+    }, [fetchSubmissions, fetchSettings]);
+
+    const handleHackathonChange = (hId: string) => {
+        setSelectedHackathonId(hId);
+        setSelectedTrack('ALL');
+        setPreviewData(null);
+        setShortlistNotification(null);
+        fetchSubmissions(hId);
+        fetchSettings(hId);
     };
 
     const togglePhase = async () => {
@@ -89,35 +163,6 @@ export default function AdminDashboard() {
         }
     };
 
-    const fetchSubmissions = async (hId: string = selectedHackathonId) => {
-        setLoading(true);
-        try {
-            const url = hId !== 'ALL' ? `/api/submissions?hackathonId=${hId}` : '/api/submissions';
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.success) {
-                setSubmissions(data.data || []);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchHackathons();
-        fetchSubmissions('ALL');
-        fetchSettings('ALL');
-    }, []);
-
-    const handleHackathonChange = (hId: string) => {
-        setSelectedHackathonId(hId);
-        setSelectedTrack('ALL');
-        fetchSubmissions(hId);
-        fetchSettings(hId);
-    };
-
     // Extract unique tracks
     const uniqueTracks = useMemo(() => {
         const tracks = new Set<string>();
@@ -127,16 +172,25 @@ export default function AdminDashboard() {
         return Array.from(tracks);
     }, [submissions]);
 
+    // Current active hackathon object
+    const activeHackathon = useMemo(() => {
+        if (selectedHackathonId !== 'ALL') {
+            return hackathons.find(h => h._id === selectedHackathonId) || null;
+        }
+        return hackathons.length > 0 ? hackathons[0] : null;
+    }, [hackathons, selectedHackathonId]);
+
     // Computed Analytics
     const stats = useMemo(() => {
         const total = submissions.length;
-        if (total === 0) return { total: 0, highest: 0, topTeam: 'N/A', average: 0, plagiarismCount: 0 };
+        if (total === 0) return { total: 0, highest: 0, topTeam: 'N/A', average: 0, plagiarismCount: 0, persistentShortlistedCount: 0 };
 
         let highest = 0;
         let topTeam = 'N/A';
         let totalScoreSum = 0;
         let evaluatedCount = 0;
         let plagiarismCount = 0;
+        let persistentShortlistedCount = 0;
 
         submissions.forEach((sub) => {
             const score = sub.aiEvaluation?.totalScore || 0;
@@ -151,16 +205,21 @@ export default function AdminDashboard() {
             if (sub.aiEvaluation?.plagiarismFlag) {
                 plagiarismCount++;
             }
+            if (sub.team?.isShortlisted) {
+                persistentShortlistedCount++;
+            }
         });
 
         const average = evaluatedCount > 0 ? Math.round(totalScoreSum / evaluatedCount) : 0;
-        const sortedScores = [...submissions]
-            .map(s => s.aiEvaluation?.totalScore ?? 0)
-            .sort((a, b) => b - a);
-        const cutoffScore = sortedScores.length >= 25 ? sortedScores[24] : (sortedScores[sortedScores.length - 1] || 0);
-        const shortlistedCount = Math.min(total, 25);
 
-        return { total, highest, topTeam, average, plagiarismCount, cutoffScore, shortlistedCount };
+        return {
+            total,
+            highest,
+            topTeam,
+            average,
+            plagiarismCount,
+            persistentShortlistedCount
+        };
     }, [submissions]);
 
     // Filtered & Sorted Submissions
@@ -170,12 +229,18 @@ export default function AdminDashboard() {
                 const matchesSearch =
                     !searchQuery ||
                     sub.team?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    sub.team?.problemStatement?.toLowerCase().includes(searchQuery.toLowerCase());
+                    sub.team?.problemStatement?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    sub.team?.projectTitle?.toLowerCase().includes(searchQuery.toLowerCase());
 
                 const matchesTrack =
                     selectedTrack === 'ALL' || (sub.team?.track || 'General').toLowerCase() === selectedTrack.toLowerCase();
 
-                return matchesSearch && matchesTrack;
+                const matchesShortlistFilter =
+                    shortlistStatusFilter === 'ALL' ||
+                    (shortlistStatusFilter === 'SHORTLISTED' && sub.team?.isShortlisted) ||
+                    (shortlistStatusFilter === 'NOT_SHORTLISTED' && !sub.team?.isShortlisted);
+
+                return matchesSearch && matchesTrack && matchesShortlistFilter;
             })
             .sort((a, b) => {
                 const scoreA = a.aiEvaluation?.totalScore ?? -1;
@@ -188,13 +253,90 @@ export default function AdminDashboard() {
                 }
                 return 0;
             });
-    }, [submissions, searchQuery, selectedTrack, sortBy]);
+    }, [submissions, searchQuery, selectedTrack, shortlistStatusFilter, sortBy]);
 
-    const displayedSubmissions = useMemo(() => {
-        if (shortlistView === 'TOP_25') return filteredSubmissions.slice(0, 25);
-        if (shortlistView === 'TOP_10') return filteredSubmissions.slice(0, 10);
-        return filteredSubmissions;
-    }, [filteredSubmissions, shortlistView]);
+    // ==========================================
+    // BACKEND SHORTLISTING ACTIONS
+    // ==========================================
+
+    const handlePreviewShortlist = async () => {
+        if (!activeHackathon) {
+            setShortlistNotification({ type: 'error', message: 'Please select a specific hackathon to configure shortlisting.' });
+            return;
+        }
+
+        setIsPreviewing(true);
+        setShortlistNotification(null);
+
+        try {
+            const res = await fetch(`/api/hackathons/${activeHackathon._id}/shortlist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    preview: true,
+                    mode: shortlistMode,
+                    limit: shortlistLimit,
+                    themeLimits: themeQuotas
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setPreviewData({
+                    totalEligible: data.totalEligible,
+                    qualifyingCount: data.qualifyingCount,
+                    cutoffScore: data.cutoffScore,
+                    qualifyingTeams: data.qualifyingTeams
+                });
+            } else {
+                setShortlistNotification({ type: 'error', message: data.error || 'Failed to preview shortlisting.' });
+            }
+        } catch {
+            setShortlistNotification({ type: 'error', message: 'Network error generating shortlist preview.' });
+        } finally {
+            setIsPreviewing(false);
+        }
+    };
+
+    const handleApplyShortlist = async () => {
+        if (!activeHackathon) {
+            setShortlistNotification({ type: 'error', message: 'Please select a specific hackathon to confirm shortlisting.' });
+            return;
+        }
+
+        setIsApplyingShortlist(true);
+        setShortlistNotification(null);
+
+        try {
+            const res = await fetch(`/api/hackathons/${activeHackathon._id}/shortlist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    preview: false,
+                    mode: shortlistMode,
+                    limit: shortlistLimit,
+                    themeLimits: themeQuotas
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setShortlistNotification({
+                    type: 'success',
+                    message: `Successfully shortlisted ${data.qualifyingCount} teams for Round 2! Results are permanently saved in MongoDB.`
+                });
+                setPreviewData(null);
+                fetchSubmissions(selectedHackathonId);
+                fetchHackathons();
+            } else {
+                setShortlistNotification({ type: 'error', message: data.error || 'Failed to persist shortlisting.' });
+            }
+        } catch {
+            setShortlistNotification({ type: 'error', message: 'Network error while persisting shortlist.' });
+        } finally {
+            setIsApplyingShortlist(false);
+        }
+    };
 
     return (
         <div className="min-h-screen p-6 md:p-10 relative">
@@ -252,11 +394,11 @@ export default function AdminDashboard() {
                             </Button>
                             <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
                                 <a
-                                    href={`/api/export?${shortlistView === 'TOP_25' ? 'limit=25&' : shortlistView === 'TOP_10' ? 'limit=10&' : ''}${selectedHackathonId !== 'ALL' ? `hackathonId=${selectedHackathonId}` : ''}`}
-                                    download={shortlistView === 'TOP_25' ? 'top25_shortlist.csv' : 'hackathon_leaderboard.csv'}
+                                    href={`/api/export?${shortlistStatusFilter === 'SHORTLISTED' ? 'shortlistedOnly=true&' : ''}${selectedHackathonId !== 'ALL' ? `hackathonId=${selectedHackathonId}&` : ''}${selectedTrack !== 'ALL' ? `track=${selectedTrack}` : ''}`}
+                                    download={shortlistStatusFilter === 'SHORTLISTED' ? 'shortlisted_teams.csv' : 'hackathon_leaderboard.csv'}
                                 >
                                     <Download className="h-4 w-4 mr-1.5" />
-                                    {shortlistView === 'TOP_25' ? 'Export Top 25 CSV' : shortlistView === 'TOP_10' ? 'Export Top 10 CSV' : 'Export CSV'}
+                                    {shortlistStatusFilter === 'SHORTLISTED' ? 'Export Shortlisted CSV' : 'Export CSV'}
                                 </a>
                             </Button>
                             <Button onClick={() => fetchSubmissions(selectedHackathonId)} variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
@@ -286,9 +428,9 @@ export default function AdminDashboard() {
                                 <Trophy className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Round 2 Qualifiers</span>
+                                <span className="text-xs text-neutral-400 font-medium">Persisted Qualifiers</span>
                                 <h3 className="text-xl font-bold text-white">
-                                    Top {stats.shortlistedCount} <span className="text-xs font-normal text-emerald-400">({stats.cutoffScore ? `Cutoff: ${stats.cutoffScore}` : 'Qualified'})</span>
+                                    {stats.persistentShortlistedCount} <span className="text-xs font-normal text-emerald-400">Shortlisted</span>
                                 </h3>
                             </div>
                         </CardContent>
@@ -319,6 +461,200 @@ export default function AdminDashboard() {
                     </Card>
                 </div>
 
+                {/* --- ORGANIZER SHORTLISTING CONTROL CENTER --- */}
+                <Card className="border-emerald-500/30 bg-neutral-950/70 backdrop-blur-md shadow-xl overflow-hidden">
+                    <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between cursor-pointer" onClick={() => setShowShortlistPanel(!showShortlistPanel)}>
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                                <Trophy className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                                    Round 2 Automatic Shortlisting Engine
+                                    {activeHackathon?.shortlistingStatus === 'SHORTLISTED' && (
+                                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-semibold">
+                                            ● Shortlist Saved in MongoDB ({activeHackathon.shortlistCount} Teams)
+                                        </Badge>
+                                    )}
+                                </CardTitle>
+                                <CardDescription className="text-xs text-neutral-400">
+                                    Automatically sort eligible evaluated presentations, select Top N or theme-wise quotas, and persist qualification status directly into MongoDB.
+                                </CardDescription>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="sm" className="text-neutral-400">
+                            {showShortlistPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </Button>
+                    </CardHeader>
+
+                    {showShortlistPanel && (
+                        <CardContent className="p-6 space-y-6">
+                            {/* Notification Banner */}
+                            {shortlistNotification && (
+                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 border ${shortlistNotification.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-red-950/40 border-red-500/40 text-red-300'}`}>
+                                    {shortlistNotification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />}
+                                    <span>{shortlistNotification.message}</span>
+                                </div>
+                            )}
+
+                            {/* Mode Selection Tabs */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Shortlisting Mode</label>
+                                    <div className="grid grid-cols-2 gap-2 bg-neutral-900 p-1 rounded-xl border border-neutral-800">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShortlistMode('OVERALL'); setPreviewData(null); }}
+                                            className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${shortlistMode === 'OVERALL' ? 'bg-primary text-black font-bold shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                                        >
+                                            <Trophy className="w-3.5 h-3.5" /> Overall Ranking
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShortlistMode('THEME_WISE'); setPreviewData(null); }}
+                                            className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${shortlistMode === 'THEME_WISE' ? 'bg-primary text-black font-bold shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                                        >
+                                            <Sliders className="w-3.5 h-3.5" /> Theme-Wise Quotas
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {shortlistMode === 'OVERALL' ? (
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Target Team Count</label>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {[10, 25, 30].map(n => (
+                                                <button
+                                                    key={n}
+                                                    type="button"
+                                                    onClick={() => { setShortlistLimit(n); setPreviewData(null); }}
+                                                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${shortlistLimit === n ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                                >
+                                                    Top {n}
+                                                </button>
+                                            ))}
+                                            <div className="flex items-center gap-2 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
+                                                <span className="text-xs text-neutral-400">Custom N:</span>
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={500}
+                                                    value={shortlistLimit}
+                                                    onChange={(e) => { setShortlistLimit(Math.max(1, parseInt(e.target.value, 10) || 1)); setPreviewData(null); }}
+                                                    className="w-16 h-7 text-xs bg-neutral-950 border-neutral-700 text-white font-bold text-center"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Per-Theme Quotas</label>
+                                        <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                                            {uniqueTracks.map((t, idx) => (
+                                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-xs">
+                                                    <span className="truncate max-w-[120px] font-medium text-neutral-300">{t}</span>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        max={100}
+                                                        placeholder="5"
+                                                        value={themeQuotas[t] !== undefined ? themeQuotas[t] : 5}
+                                                        onChange={(e) => {
+                                                            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                            setThemeQuotas(prev => ({ ...prev, [t]: val }));
+                                                            setPreviewData(null);
+                                                        }}
+                                                        className="w-14 h-6 text-xs bg-neutral-950 border-neutral-700 text-white text-center font-bold"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Shortlist Action Controls */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-800/60">
+                                <div className="text-xs text-neutral-400">
+                                    Event in Scope: <span className="text-white font-semibold">{activeHackathon ? activeHackathon.name : 'All Events'}</span>
+                                    {activeHackathon?.shortlistedAt && (
+                                        <span className="text-emerald-400 ml-2">
+                                            (Last shortlisted on {new Date(activeHackathon.shortlistedAt).toLocaleString()})
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isPreviewing || isApplyingShortlist}
+                                        onClick={handlePreviewShortlist}
+                                        className="border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-white text-xs"
+                                    >
+                                        {isPreviewing ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <EyeIcon className="w-3.5 h-3.5 mr-1.5" />}
+                                        Preview Qualifying Teams
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        disabled={isApplyingShortlist}
+                                        onClick={handleApplyShortlist}
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs shadow-lg shadow-emerald-500/20"
+                                    >
+                                        {isApplyingShortlist ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Trophy className="w-3.5 h-3.5 mr-1.5" />}
+                                        Confirm & Persist to Database
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Shortlist Preview Drawer */}
+                            {previewData && (
+                                <div className="p-4 rounded-xl bg-neutral-900/90 border border-emerald-500/40 space-y-4 animate-in fade-in">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40">
+                                                Preview: Top {previewData.qualifyingCount} Teams
+                                            </Badge>
+                                            <span className="text-xs text-neutral-400">
+                                                Total Evaluated Candidates: <strong className="text-white">{previewData.totalEligible}</strong>
+                                            </span>
+                                            <span className="text-xs text-neutral-400">
+                                                Cutoff Score: <strong className="text-emerald-400">{previewData.cutoffScore}/100</strong>
+                                            </span>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            onClick={handleApplyShortlist}
+                                            disabled={isApplyingShortlist}
+                                            className="bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs h-7"
+                                        >
+                                            {isApplyingShortlist ? 'Saving to Database...' : 'Save this Shortlist in MongoDB'}
+                                        </Button>
+                                    </div>
+
+                                    <div className="max-h-60 overflow-y-auto space-y-1 pr-1 text-xs">
+                                        {previewData.qualifyingTeams.map((qt) => (
+                                            <div key={qt.teamId} className="flex items-center justify-between p-2 rounded-lg bg-neutral-950/70 border border-neutral-800/80">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-[11px]">
+                                                        {qt.rank}
+                                                    </span>
+                                                    <span className="font-semibold text-white">{qt.teamName}</span>
+                                                    <Badge variant="outline" className="text-[10px] py-0 border-indigo-500/40 text-indigo-400">
+                                                        {qt.track}
+                                                    </Badge>
+                                                </div>
+                                                <span className="font-extrabold text-emerald-400 text-sm">{qt.score}/100</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    )}
+                </Card>
+
                 {/* Filter & Search Bar */}
                 <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-800/80 backdrop-blur-sm">
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -332,25 +668,25 @@ export default function AdminDashboard() {
                             />
                         </div>
 
-                        {/* Shortlist Quick Filter */}
+                        {/* Database Shortlist Filter Tabs */}
                         <div className="flex items-center bg-neutral-950 p-1 rounded-lg border border-neutral-800">
                             <button
-                                onClick={() => setShortlistView('ALL')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistView === 'ALL' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                                onClick={() => setShortlistStatusFilter('ALL')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistStatusFilter === 'ALL' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
                             >
                                 All Teams ({submissions.length})
                             </button>
                             <button
-                                onClick={() => setShortlistView('TOP_25')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistView === 'TOP_25' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
+                                onClick={() => setShortlistStatusFilter('SHORTLISTED')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'SHORTLISTED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
                             >
-                                <Trophy className="w-3.5 h-3.5 text-emerald-400" /> Top 25 Shortlist
+                                <Trophy className="w-3.5 h-3.5 text-emerald-400" /> Shortlisted ({stats.persistentShortlistedCount})
                             </button>
                             <button
-                                onClick={() => setShortlistView('TOP_10')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistView === 'TOP_10' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-neutral-400 hover:text-white'}`}
+                                onClick={() => setShortlistStatusFilter('NOT_SHORTLISTED')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistStatusFilter === 'NOT_SHORTLISTED' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
                             >
-                                <Sparkles className="w-3.5 h-3.5" /> Top 10
+                                Not Shortlisted
                             </button>
                         </div>
                     </div>
@@ -390,10 +726,10 @@ export default function AdminDashboard() {
                     <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between">
                         <div className="flex items-center gap-2">
                             <CardTitle className="text-lg font-bold">
-                                {shortlistView === 'TOP_25' ? '🏆 Top 25 Shortlisted Teams (Round 2 Qualifiers)' : shortlistView === 'TOP_10' ? '⭐ Top 10 Finalists' : 'Ranked Submissions'}
+                                {shortlistStatusFilter === 'SHORTLISTED' ? '🏆 Round 2 Shortlisted Teams' : 'Ranked Submissions'}
                             </CardTitle>
                             <Badge variant="outline" className="text-xs font-medium text-neutral-400 border-neutral-800">
-                                Showing {displayedSubmissions.length} of {submissions.length} teams
+                                Showing {filteredSubmissions.length} of {submissions.length} teams
                             </Badge>
                         </div>
                         {searchQuery && (
@@ -408,7 +744,7 @@ export default function AdminDashboard() {
                                 <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
                                 Loading leaderboard data...
                             </div>
-                        ) : displayedSubmissions.length === 0 ? (
+                        ) : filteredSubmissions.length === 0 ? (
                             <div className="text-center py-16 text-neutral-400">
                                 <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
                                 No submissions match your filter.
@@ -417,40 +753,44 @@ export default function AdminDashboard() {
                             <Table>
                                 <TableHeader className="bg-neutral-900/40">
                                     <TableRow className="border-neutral-800">
-                                        <TableHead className="w-12 text-center">#</TableHead>
+                                        <TableHead className="w-14 text-center">Rank</TableHead>
                                         <TableHead>Team & Track</TableHead>
                                         <TableHead className="hidden md:table-cell">Problem Statement</TableHead>
-                                        <TableHead>Status</TableHead>
+                                        <TableHead>Shortlist Status</TableHead>
                                         <TableHead className="text-right">ATS Score</TableHead>
                                         <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayedSubmissions.map((sub, idx) => {
+                                    {filteredSubmissions.map((sub, idx) => {
                                         const score = sub.aiEvaluation?.totalScore;
-                                        const rank = idx + 1;
-                                        const isTop3 = rank <= 3 && sortBy === 'SCORE_DESC' && !searchQuery;
-                                        const isQualifiedTop25 = rank <= 25 && sortBy === 'SCORE_DESC';
+                                        const isShortlisted = Boolean(sub.team?.isShortlisted);
+                                        const rankDisplay = isShortlisted && sub.team?.shortlistRank ? `#${sub.team.shortlistRank}` : idx + 1;
+                                        const isTop3 = isShortlisted && (sub.team?.shortlistRank ?? idx + 1) <= 3;
+
                                         return (
                                             <TableRow key={sub._id?.toString()} className="border-neutral-800/60 hover:bg-neutral-900/30 transition-colors">
                                                 <TableCell className="text-center font-bold text-xs text-neutral-400">
                                                     {isTop3 ? (
-                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-extrabold">
-                                                            {rank}
+                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-extrabold">
+                                                            {rankDisplay}
                                                         </span>
                                                     ) : (
-                                                        rank
+                                                        rankDisplay
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="font-semibold text-white flex items-center gap-2">
-                                                        {blindJudgingEnabled ? `Team #${rank} (Redacted)` : (sub.team?.name || 'Unknown Team')}
+                                                        {blindJudgingEnabled ? `Team #${idx + 1} (Redacted)` : (sub.team?.name || 'Unknown Team')}
                                                         {sub.aiEvaluation?.plagiarismFlag && (
                                                             <Badge variant="destructive" className="bg-amber-900/40 text-amber-300 text-[10px] px-1.5 py-0 border-amber-800">
                                                                 Cliche Flag
                                                             </Badge>
                                                         )}
                                                     </div>
+                                                    {sub.team?.projectTitle && (
+                                                        <p className="text-xs text-primary font-medium">{sub.team.projectTitle}</p>
+                                                    )}
                                                     <div className="flex items-center gap-2 mt-0.5">
                                                         <span className="text-xs text-indigo-400">
                                                             {sub.team?.track || 'General'} Track
@@ -467,14 +807,23 @@ export default function AdminDashboard() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1 items-start">
-                                                        {isQualifiedTop25 ? (
-                                                            <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 whitespace-nowrap">
-                                                                🏆 Top 25 Qualified
+                                                        {isShortlisted ? (
+                                                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                🏆 Shortlisted {sub.team?.shortlistRank ? `(#${sub.team.shortlistRank})` : ''}
+                                                            </Badge>
+                                                        ) : sub.status === 'EVALUATED' ? (
+                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                Evaluated
                                                             </Badge>
                                                         ) : (
-                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
-                                                                Round 1 Evaluated
+                                                            <Badge variant="secondary" className="text-amber-400 bg-amber-500/10 border-amber-500/20 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                {sub.status || 'Pending'}
                                                             </Badge>
+                                                        )}
+                                                        {isShortlisted && sub.team?.shortlistedAt && (
+                                                            <span className="text-[9px] text-neutral-500">
+                                                                {new Date(sub.team.shortlistedAt).toLocaleDateString()}
+                                                            </span>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -505,5 +854,25 @@ export default function AdminDashboard() {
                 </Card>
             </div>
         </div>
+    );
+}
+
+function EyeIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
     );
 }
