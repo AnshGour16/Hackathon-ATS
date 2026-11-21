@@ -9,7 +9,9 @@ export default withAuth(
 
         if (isAuthPage) {
             if (isAuth) {
-                return NextResponse.redirect(new URL("/admin", req.url));
+                const role = token?.role as string | undefined;
+                const dest = (role === 'ADMIN' || role === 'JUDGE') ? '/admin' : '/dashboard';
+                return NextResponse.redirect(new URL(dest, req.url));
             }
             return null;
         }
@@ -23,6 +25,14 @@ export default withAuth(
             return NextResponse.redirect(
                 new URL(`/login?from=${encodeURIComponent(from)}`, req.url)
             );
+        }
+
+        // Role-based protection: Only Admins/Judges can access /admin
+        if (req.nextUrl.pathname.startsWith("/admin")) {
+            const role = token?.role as string | undefined;
+            if (role !== 'ADMIN' && role !== 'JUDGE') {
+                return NextResponse.redirect(new URL("/dashboard", req.url));
+            }
         }
     },
     {
@@ -38,5 +48,5 @@ export default withAuth(
 );
 
 export const config = {
-    matcher: ["/admin/:path*", "/login"],
+    matcher: ["/admin/:path*", "/dashboard/:path*", "/login"],
 };

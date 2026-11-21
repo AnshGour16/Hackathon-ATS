@@ -6,6 +6,8 @@ import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+import '@/models/Hackathon';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -22,16 +24,30 @@ export async function GET() {
             return NextResponse.json({ error: 'User not found.' }, { status: 404 });
         }
 
-        // Find the team where this user is the leader
-        const team = await Team.findOne({ leader: user._id });
+        // Find the team where this user is the verified leader
+        const team = await Team.findOne({ leader: user._id })
+            .populate('hackathon', 'name slug theme description isCodeSubmissionOpen blindJudgingEnabled')
+            .lean();
+
         if (!team) {
-            return NextResponse.json({ success: true, submission: null, message: "No team submission found for this user." });
+            return NextResponse.json({
+                success: true,
+                team: null,
+                submission: null,
+                message: "No team registered for this account."
+            });
         }
 
         // Find the submission for this team
-        const submission = await Submission.findOne({ team: team._id }).populate('team', 'name problemStatement track members githubUrl');
+        const submission = await Submission.findOne({ team: team._id })
+            .populate('hackathon', 'name slug theme')
+            .lean();
 
-        return NextResponse.json({ success: true, submission });
+        return NextResponse.json({
+            success: true,
+            team,
+            submission
+        });
 
     } catch (error: unknown) {
         console.error('API Error:', error);

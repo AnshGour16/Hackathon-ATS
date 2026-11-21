@@ -5,6 +5,8 @@ export interface IUser extends Document {
     email: string;
     passwordHash?: string;
     role: 'ADMIN' | 'JUDGE' | 'PARTICIPANT';
+    phone?: string;
+    college?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -18,6 +20,8 @@ const UserSchema: Schema = new Schema({
         enum: ['ADMIN', 'JUDGE', 'PARTICIPANT'],
         default: 'PARTICIPANT'
     },
+    phone: { type: String },
+    college: { type: String },
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);

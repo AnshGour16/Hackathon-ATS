@@ -25,19 +25,10 @@ export async function POST(req: NextRequest) {
             user = await User.findOne({ email: session.user.email });
         }
 
-        // If no authenticated user, find or create a default guest participant user
         if (!user) {
-            user = await User.findOneAndUpdate(
-                { email: 'guest@hackathon.com' },
-                {
-                    $setOnInsert: {
-                        name: 'Guest Submitter',
-                        email: 'guest@hackathon.com',
-                        role: 'PARTICIPANT'
-                    }
-                },
-                { upsert: true, new: true }
-            );
+            return NextResponse.json({
+                error: 'Authentication required. Please sign in or register your team before submitting a presentation.'
+            }, { status: 401 });
         }
 
         const formData = await req.formData();
@@ -48,11 +39,11 @@ export async function POST(req: NextRequest) {
         const hackathonId = formData.get('hackathonId') as string | null;
         const membersStr = formData.get('members') as string | null;
 
-        if (!file || !teamName) {
-            return NextResponse.json({ error: 'File and Team Name are required' }, { status: 400 });
+        if (!file) {
+            return NextResponse.json({ error: 'Presentation file is required' }, { status: 400 });
         }
 
-        let members: { name: string; department: string; rollNo: string }[] = [];
+        let members: { name: string; department?: string; rollNo?: string; email?: string; college?: string }[] = [];
         try {
             if (membersStr) members = JSON.parse(membersStr);
         } catch {
@@ -94,25 +85,48 @@ export async function POST(req: NextRequest) {
             trackSettings = hackathon.tracks.find((t: ITrack) => t.name === trackName);
         }
 
-        // 2. Initialize team profile with member roster & hackathon ref
-        const team = new Team({
-            name: teamName,
-            hackathon: hackathon._id,
-            track: trackName || 'General',
-            problemStatement: problemStatement || 'Not Provided',
-            leader: user._id,
-            members: members
-        });
-        await team.save();
+        // 2. Resolve or find Team for this authenticated leader
+        let team = await Team.findOne({ leader: user._id });
 
-        // 3. Create Submission (Status: Processing)
-        const submission = new Submission({
-            team: team._id,
-            hackathon: hackathon._id,
-            fileName: file.name,
-            fileUrl: fileUrl,
-            status: 'AI_PROCESSING'
-        });
+        if (!team) {
+            if (!teamName) {
+                return NextResponse.json({ error: 'Team name is required for new registration.' }, { status: 400 });
+            }
+            team = new Team({
+                name: teamName,
+                hackathon: hackathon._id,
+                track: trackName || 'General',
+                problemStatement: problemStatement || 'Not Provided',
+                leader: user._id,
+                members: members
+            });
+            await team.save();
+        } else {
+            // Update team's info if provided
+            if (teamName) team.name = teamName;
+            if (trackName) team.track = trackName;
+            if (problemStatement) team.problemStatement = problemStatement;
+            if (hackathon) team.hackathon = hackathon._id;
+            if (members.length > 0) team.members = members;
+            await team.save();
+        }
+
+        // 3. Find or Create Submission for this team (prevents duplicate submission pollution!)
+        let submission = await Submission.findOne({ team: team._id });
+        if (!submission) {
+            submission = new Submission({
+                team: team._id,
+                hackathon: hackathon._id,
+                fileName: file.name,
+                fileUrl: fileUrl,
+                status: 'AI_PROCESSING'
+            });
+        } else {
+            submission.fileName = file.name;
+            submission.fileUrl = fileUrl;
+            submission.hackathon = hackathon._id;
+            submission.status = 'AI_PROCESSING';
+        }
         await submission.save();
 
         // 3. Extract Text & Evaluate with Gemini using specific Hackathon prompts & Theme

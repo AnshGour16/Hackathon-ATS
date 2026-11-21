@@ -36,7 +36,7 @@ export default async function Navbar() {
                                     </Link>
                                 </Button>
                             )}
-                            <Button asChild variant="default" className="bg-primary hover:bg-primary/80 text-primary-foreground">
+                            <Button asChild variant="default" className="bg-primary hover:bg-primary/80 text-black font-semibold">
                                 <Link href={isAdminOrJudge ? '/admin' : '/dashboard'}>
                                     <LayoutDashboard className="w-4 h-4 mr-2" />
                                     {isAdminOrJudge ? 'Admin Dashboard' : 'My Dashboard'}
@@ -46,7 +46,7 @@ export default async function Navbar() {
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center text-sm text-neutral-300">
                                     <UserIcon className="w-4 h-4 mr-1 text-primary" />
-                                    {session.user?.name || 'Admin'}
+                                    {session.user?.name || 'Account'}
                                 </div>
                                 <Button asChild variant="outline" size="sm" className="border-primary/30 text-white hover:bg-red-500/20 hover:text-red-400">
                                     <Link href="/api/auth/signout">
@@ -57,12 +57,19 @@ export default async function Navbar() {
                             </div>
                         </>
                     ) : (
-                        <Button asChild variant="outline" className="border-primary/50 text-white hover:bg-primary/20">
-                            <Link href="/login">
-                                <LogIn className="w-4 h-4 mr-2" />
-                                Judge Login
-                            </Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button asChild variant="default" className="bg-primary hover:bg-primary/90 text-black font-bold">
+                                <Link href="/register">
+                                    Register Team
+                                </Link>
+                            </Button>
+                            <Button asChild variant="outline" className="border-primary/50 text-white hover:bg-primary/20">
+                                <Link href="/login">
+                                    <LogIn className="w-4 h-4 mr-2" />
+                                    Sign In
+                                </Link>
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>

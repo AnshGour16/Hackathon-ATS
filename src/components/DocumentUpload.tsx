@@ -454,9 +454,21 @@ export default function DocumentUpload() {
                     </div>
 
                     {errorMessage && (
-                        <div className="p-3 bg-red-900/30 border border-red-900/50 rounded-lg text-red-300 text-sm flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-                            <span>{errorMessage}</span>
+                        <div className="p-4 bg-red-950/40 border border-red-500/30 rounded-xl text-red-300 text-sm space-y-2">
+                            <div className="flex items-center gap-2 font-medium">
+                                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                                <span>{errorMessage}</span>
+                            </div>
+                            {errorMessage.includes('Authentication') && (
+                                <div className="flex gap-2 pt-1">
+                                    <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-black font-bold h-8">
+                                        <Link href="/register">Register Team Now</Link>
+                                    </Button>
+                                    <Button asChild variant="outline" size="sm" className="border-neutral-700 h-8 text-white">
+                                        <Link href="/login">Sign In</Link>
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
 
