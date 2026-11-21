@@ -32,17 +32,26 @@ export async function GET(req: NextRequest) {
 
         const { searchParams } = new URL(req.url);
         const hackathonId = searchParams.get('hackathonId');
+        const limitParam = searchParams.get('limit');
 
         const filter: Record<string, unknown> = {};
         if (hackathonId && hackathonId !== 'ALL') {
             filter.hackathon = hackathonId;
         }
 
-        const submissions = await Submission.find(filter)
+        let query = Submission.find(filter)
             .populate('team', 'name problemStatement track members')
             .populate('hackathon', 'name')
-            .sort({ 'aiEvaluation.totalScore': -1, createdAt: -1 })
-            .lean() as unknown as IExportSubmission[];
+            .sort({ 'aiEvaluation.totalScore': -1, createdAt: -1 });
+
+        if (limitParam) {
+            const limit = parseInt(limitParam, 10);
+            if (!isNaN(limit) && limit > 0) {
+                query = query.limit(limit);
+            }
+        }
+
+        const submissions = await query.lean() as unknown as IExportSubmission[];
 
         // CSV Header
         const headers = [

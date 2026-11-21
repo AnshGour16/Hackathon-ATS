@@ -25,21 +25,48 @@ export async function getOrCreateDefaultHackathon(): Promise<IHackathon> {
                 ? legacySettings.tracks
                 : [
                     {
-                        name: 'General',
-                        requiredSlides: ['Problem Statement', 'Solution Architecture', 'Tech Stack', 'Business Impact'],
+                        name: 'AI & Machine Learning',
+                        requiredSlides: ['Problem Statement', 'Model & Agent Architecture', 'Data Pipeline', 'Evaluation & Impact'],
                         rubrics: [
-                            { criterion: 'Innovation', weightage: 10, description: 'Originality, creative design, and competitive differentiation' },
-                            { criterion: 'Technical Feasibility', weightage: 10, description: 'Soundness of technology choices, system architecture, and viability' },
-                            { criterion: 'Completeness', weightage: 10, description: 'Depth of execution, clear value proposition, and user experience' }
+                            { criterion: 'AI Innovation', weightage: 10, description: 'Novel use of LLMs, agentic workflows, computer vision, or multimodal systems' },
+                            { criterion: 'Technical Architecture', weightage: 10, description: 'Scalability, latency management, vector search, and robustness' },
+                            { criterion: 'Real-World Impact', weightage: 10, description: 'Solves an acute real-world problem with measurable accuracy' }
                         ]
                     },
                     {
-                        name: 'AI & Agents',
-                        requiredSlides: ['Problem Statement', 'Agent Architecture', 'Model & Vector Pipeline', 'Evaluation Metrics'],
+                        name: 'FinTech & Web3',
+                        requiredSlides: ['Problem Statement', 'System & Security Architecture', 'Financial Flow / Smart Contract', 'Market Feasibility'],
                         rubrics: [
-                            { criterion: 'AI Novelty', weightage: 10, description: 'Effective orchestration, fine-tuning, RAG, or agentic workflow usage' },
-                            { criterion: 'System Architecture', weightage: 10, description: 'Latency handling, context efficiency, and robust failure recovery' },
-                            { criterion: 'Real-World Impact', weightage: 10, description: 'Solves an acute pain point with measurable efficiency gains' }
+                            { criterion: 'Security & Compliance', weightage: 10, description: 'Transaction safety, fraud prevention, auditability, and data security' },
+                            { criterion: 'Business Feasibility', weightage: 10, description: 'Practical business model, user adoption path, and transaction velocity' },
+                            { criterion: 'Execution Quality', weightage: 10, description: 'Robust backend, API integrations, and intuitive UX' }
+                        ]
+                    },
+                    {
+                        name: 'HealthTech & Bio-Informatics',
+                        requiredSlides: ['Clinical / Healthcare Need', 'Solution Architecture', 'Privacy & HIPAA Compliance', 'Patient Outcomes'],
+                        rubrics: [
+                            { criterion: 'Clinical Relevance', weightage: 10, description: 'Clear healthcare utility, diagnostic accuracy, or care improvements' },
+                            { criterion: 'Privacy & Safety', weightage: 10, description: 'Patient data security, HIPAA compliance, and ethical AI safeguards' },
+                            { criterion: 'Feasibility', weightage: 10, description: 'Ease of clinical adoption and operational scalability' }
+                        ]
+                    },
+                    {
+                        name: 'Smart Cities & Sustainability',
+                        requiredSlides: ['Environmental Need', 'IoT / Tech Architecture', 'Sustainability Metrics', 'Deployment Plan'],
+                        rubrics: [
+                            { criterion: 'Eco & Social Impact', weightage: 10, description: 'Measurable energy, carbon, waste, or urban efficiency impact' },
+                            { criterion: 'Engineering Rigor', weightage: 10, description: 'Hardware/IoT telemetry, edge processing, and systems integration' },
+                            { criterion: 'Scalability', weightage: 10, description: 'Viability of city-wide or enterprise-level deployment' }
+                        ]
+                    },
+                    {
+                        name: 'Open Innovation',
+                        requiredSlides: ['Problem Statement', 'Solution Architecture', 'Tech Stack', 'Product Roadmap'],
+                        rubrics: [
+                            { criterion: 'Creativity & Novelty', weightage: 10, description: 'Originality, competitive differentiation, and out-of-the-box thinking' },
+                            { criterion: 'Technical Depth', weightage: 10, description: 'Code architecture, modern tech stack, and execution quality' },
+                            { criterion: 'User Experience', weightage: 10, description: 'Intuitive design, user onboarding, and polish' }
                         ]
                     }
                 ],

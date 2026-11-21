@@ -39,6 +39,7 @@ export default function AdminDashboard() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTrack, setSelectedTrack] = useState('ALL');
     const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST'>('SCORE_DESC');
+    const [shortlistView, setShortlistView] = useState<'ALL' | 'TOP_25' | 'TOP_10'>('ALL');
 
     const fetchHackathons = async () => {
         try {
@@ -153,7 +154,13 @@ export default function AdminDashboard() {
         });
 
         const average = evaluatedCount > 0 ? Math.round(totalScoreSum / evaluatedCount) : 0;
-        return { total, highest, topTeam, average, plagiarismCount };
+        const sortedScores = [...submissions]
+            .map(s => s.aiEvaluation?.totalScore ?? 0)
+            .sort((a, b) => b - a);
+        const cutoffScore = sortedScores.length >= 25 ? sortedScores[24] : (sortedScores[sortedScores.length - 1] || 0);
+        const shortlistedCount = Math.min(total, 25);
+
+        return { total, highest, topTeam, average, plagiarismCount, cutoffScore, shortlistedCount };
     }, [submissions]);
 
     // Filtered & Sorted Submissions
@@ -182,6 +189,12 @@ export default function AdminDashboard() {
                 return 0;
             });
     }, [submissions, searchQuery, selectedTrack, sortBy]);
+
+    const displayedSubmissions = useMemo(() => {
+        if (shortlistView === 'TOP_25') return filteredSubmissions.slice(0, 25);
+        if (shortlistView === 'TOP_10') return filteredSubmissions.slice(0, 10);
+        return filteredSubmissions;
+    }, [filteredSubmissions, shortlistView]);
 
     return (
         <div className="min-h-screen p-6 md:p-10 relative">
@@ -238,8 +251,12 @@ export default function AdminDashboard() {
                                 </Link>
                             </Button>
                             <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
-                                <a href={`/api/export${selectedHackathonId !== 'ALL' ? `?hackathonId=${selectedHackathonId}` : ''}`} download="hackathon_leaderboard.csv">
-                                    <Download className="h-4 w-4 mr-1.5" /> Export CSV
+                                <a
+                                    href={`/api/export?${shortlistView === 'TOP_25' ? 'limit=25&' : shortlistView === 'TOP_10' ? 'limit=10&' : ''}${selectedHackathonId !== 'ALL' ? `hackathonId=${selectedHackathonId}` : ''}`}
+                                    download={shortlistView === 'TOP_25' ? 'top25_shortlist.csv' : 'hackathon_leaderboard.csv'}
+                                >
+                                    <Download className="h-4 w-4 mr-1.5" />
+                                    {shortlistView === 'TOP_25' ? 'Export Top 25 CSV' : shortlistView === 'TOP_10' ? 'Export Top 10 CSV' : 'Export CSV'}
                                 </a>
                             </Button>
                             <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
@@ -272,10 +289,10 @@ export default function AdminDashboard() {
                                 <Trophy className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Highest Score</span>
-                                    <h3 className="text-xl font-bold text-white">
-                                        {stats.highest} <span className="text-xs font-normal text-neutral-400">({blindJudgingEnabled ? 'Redacted' : stats.topTeam.slice(0, 10)})</span>
-                                    </h3>
+                                <span className="text-xs text-neutral-400 font-medium">Round 2 Qualifiers</span>
+                                <h3 className="text-xl font-bold text-white">
+                                    Top {stats.shortlistedCount} <span className="text-xs font-normal text-emerald-400">({stats.cutoffScore ? `Cutoff: ${stats.cutoffScore}` : 'Qualified'})</span>
+                                </h3>
                             </div>
                         </CardContent>
                     </Card>
@@ -306,27 +323,51 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Filter & Search Bar */}
-                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-800/80 backdrop-blur-sm">
-                    <div className="relative w-full sm:w-80">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                        <Input
-                            placeholder="Search team or problem..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 bg-neutral-900/70 border-neutral-800 text-sm h-9 text-white placeholder:text-neutral-500"
-                        />
+                <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-800/80 backdrop-blur-sm">
+                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                            <Input
+                                placeholder="Search team or problem..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9 bg-neutral-900/70 border-neutral-800 text-sm h-9 text-white placeholder:text-neutral-500"
+                            />
+                        </div>
+
+                        {/* Shortlist Quick Filter */}
+                        <div className="flex items-center bg-neutral-950 p-1 rounded-lg border border-neutral-800">
+                            <button
+                                onClick={() => setShortlistView('ALL')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistView === 'ALL' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                            >
+                                All Teams ({submissions.length})
+                            </button>
+                            <button
+                                onClick={() => setShortlistView('TOP_25')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistView === 'TOP_25' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
+                            >
+                                <Trophy className="w-3.5 h-3.5 text-emerald-400" /> Top 25 Shortlist
+                            </button>
+                            <button
+                                onClick={() => setShortlistView('TOP_10')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistView === 'TOP_10' ? 'bg-primary/20 text-primary border border-primary/40' : 'text-neutral-400 hover:text-white'}`}
+                            >
+                                <Sparkles className="w-3.5 h-3.5" /> Top 10
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                    <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
                         <div className="flex items-center gap-1.5 text-xs text-neutral-400">
-                            <Filter className="w-3.5 h-3.5" /> Track:
+                            <Filter className="w-3.5 h-3.5" /> Theme:
                         </div>
                         <select
                             value={selectedTrack}
                             onChange={(e) => setSelectedTrack(e.target.value)}
                             className="h-9 px-3 text-xs bg-neutral-900/80 border border-neutral-800 rounded-lg text-white"
                         >
-                            <option value="ALL">All Tracks</option>
+                            <option value="ALL">All Themes</option>
                             <option value="General">General</option>
                             {uniqueTracks.filter((t) => t.toLowerCase() !== 'general').map((t, i) => (
                                 <option key={i} value={t}>
@@ -350,7 +391,14 @@ export default function AdminDashboard() {
                 {/* Leaderboard Table */}
                 <Card className="border-primary/20 bg-background/60 backdrop-blur-md overflow-hidden">
                     <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between">
-                        <CardTitle className="text-lg font-bold">Ranked Submissions ({filteredSubmissions.length})</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg font-bold">
+                                {shortlistView === 'TOP_25' ? '🏆 Top 25 Shortlisted Teams (Round 2 Qualifiers)' : shortlistView === 'TOP_10' ? '⭐ Top 10 Finalists' : 'Ranked Submissions'}
+                            </CardTitle>
+                            <Badge variant="outline" className="text-xs font-medium text-neutral-400 border-neutral-800">
+                                Showing {displayedSubmissions.length} of {submissions.length} teams
+                            </Badge>
+                        </div>
                         {searchQuery && (
                             <button onClick={() => setSearchQuery('')} className="text-xs text-primary hover:underline">
                                 Clear Search Filter
@@ -363,7 +411,7 @@ export default function AdminDashboard() {
                                 <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
                                 Loading leaderboard data...
                             </div>
-                        ) : filteredSubmissions.length === 0 ? (
+                        ) : displayedSubmissions.length === 0 ? (
                             <div className="text-center py-16 text-neutral-400">
                                 <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
                                 No submissions match your filter.
@@ -381,23 +429,25 @@ export default function AdminDashboard() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredSubmissions.map((sub, idx) => {
+                                    {displayedSubmissions.map((sub, idx) => {
                                         const score = sub.aiEvaluation?.totalScore;
-                                        const isTop3 = idx < 3 && sortBy === 'SCORE_DESC' && !searchQuery;
+                                        const rank = idx + 1;
+                                        const isTop3 = rank <= 3 && sortBy === 'SCORE_DESC' && !searchQuery;
+                                        const isQualifiedTop25 = rank <= 25 && sortBy === 'SCORE_DESC';
                                         return (
                                             <TableRow key={sub._id?.toString()} className="border-neutral-800/60 hover:bg-neutral-900/30 transition-colors">
                                                 <TableCell className="text-center font-bold text-xs text-neutral-400">
                                                     {isTop3 ? (
                                                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-extrabold">
-                                                            {idx + 1}
+                                                            {rank}
                                                         </span>
                                                     ) : (
-                                                        idx + 1
+                                                        rank
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="font-semibold text-white flex items-center gap-2">
-                                                        {blindJudgingEnabled ? `Team #${idx + 1} (Redacted)` : (sub.team?.name || 'Unknown Team')}
+                                                        {blindJudgingEnabled ? `Team #${rank} (Redacted)` : (sub.team?.name || 'Unknown Team')}
                                                         {sub.aiEvaluation?.plagiarismFlag && (
                                                             <Badge variant="destructive" className="bg-amber-900/40 text-amber-300 text-[10px] px-1.5 py-0 border-amber-800">
                                                                 Cliche Flag
@@ -419,12 +469,17 @@ export default function AdminDashboard() {
                                                     {sub.team?.problemStatement || 'N/A'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge
-                                                        variant={sub.status === 'EVALUATED' ? 'default' : 'secondary'}
-                                                        className={sub.status === 'EVALUATED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs' : 'text-xs'}
-                                                    >
-                                                        {sub.status}
-                                                    </Badge>
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        {isQualifiedTop25 ? (
+                                                            <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                🏆 Top 25 Qualified
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                Round 1 Evaluated
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-right font-bold text-lg">
                                                     {score !== undefined ? (
