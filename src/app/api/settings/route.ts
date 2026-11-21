@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Settings from '@/models/Settings';
+import Hackathon from '@/models/Hackathon';
+import { getOrCreateDefaultHackathon } from '@/lib/hackathon-service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -14,9 +16,31 @@ async function getGlobalSettings() {
     return settings;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
+        await getOrCreateDefaultHackathon();
+
+        const { searchParams } = new URL(req.url);
+        const hackathonId = searchParams.get('hackathonId');
+
+        if (hackathonId && hackathonId !== 'ALL') {
+            const hackathon = await Hackathon.findById(hackathonId).lean();
+            if (hackathon) {
+                return NextResponse.json({
+                    success: true,
+                    hackathonId: hackathon._id,
+                    name: hackathon.name,
+                    theme: hackathon.theme,
+                    description: hackathon.description,
+                    customAiPrompt: hackathon.customAiPrompt,
+                    isCodeSubmissionOpen: hackathon.isCodeSubmissionOpen,
+                    blindJudgingEnabled: hackathon.blindJudgingEnabled,
+                    tracks: hackathon.tracks || []
+                });
+            }
+        }
+
         const settings = await getGlobalSettings();
         return NextResponse.json({
             success: true,
@@ -42,6 +66,35 @@ export async function POST(req: NextRequest) {
 
         await connectToDatabase();
         const body = await req.json();
+
+        // If specific hackathonId provided, update that hackathon
+        if (body.hackathonId && body.hackathonId !== 'ALL') {
+            const hackathon = await Hackathon.findById(body.hackathonId);
+            if (hackathon) {
+                if (typeof body.isCodeSubmissionOpen === 'boolean') {
+                    hackathon.isCodeSubmissionOpen = body.isCodeSubmissionOpen;
+                }
+                if (typeof body.blindJudgingEnabled === 'boolean') {
+                    hackathon.blindJudgingEnabled = body.blindJudgingEnabled;
+                }
+                if (Array.isArray(body.tracks)) {
+                    hackathon.tracks = body.tracks;
+                }
+                if (typeof body.theme === 'string') hackathon.theme = body.theme;
+                if (typeof body.description === 'string') hackathon.description = body.description;
+                if (typeof body.customAiPrompt === 'string') hackathon.customAiPrompt = body.customAiPrompt;
+
+                await hackathon.save();
+
+                return NextResponse.json({
+                    success: true,
+                    hackathonId: hackathon._id,
+                    isCodeSubmissionOpen: hackathon.isCodeSubmissionOpen,
+                    blindJudgingEnabled: hackathon.blindJudgingEnabled,
+                    tracks: hackathon.tracks
+                });
+            }
+        }
 
         const settings = await getGlobalSettings();
 

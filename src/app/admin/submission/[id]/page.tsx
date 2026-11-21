@@ -12,8 +12,9 @@ import { ISubmission } from '@/models/Submission';
 import { ITeam } from '@/models/Team';
 
 // Create a UI specific interface since the API populates the team object
-interface ISubmissionWithTeam extends Omit<ISubmission, 'team'> {
+interface ISubmissionWithTeam extends Omit<ISubmission, 'team' | 'hackathon'> {
     team: ITeam;
+    hackathon?: { _id: string; name: string; theme: string };
 }
 
 export default function SubmissionDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -69,6 +70,11 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                             <Badge variant="outline" className="border-indigo-500/50 text-indigo-300">
                                 {data.team?.track || 'General'} Track
                             </Badge>
+                            {data.hackathon && (
+                                <Badge variant="secondary" className="bg-purple-950/60 text-purple-300 border border-purple-500/30">
+                                    {data.hackathon.name}
+                                </Badge>
+                            )}
                         </div>
                         <p className="text-muted-foreground mt-1">{data.team?.problemStatement || 'No Problem Statement'}</p>
 

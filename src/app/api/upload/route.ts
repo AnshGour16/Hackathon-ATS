@@ -4,7 +4,9 @@ import Team from '@/models/Team';
 import Submission from '@/models/Submission';
 import { extractTextFromPDF } from '@/lib/pdf-parser';
 import { evaluatePresentationWithGemini } from '@/lib/gemini';
-import Settings, { ITrack } from '@/models/Settings';
+import { ITrack } from '@/models/Settings';
+import Hackathon from '@/models/Hackathon';
+import { getOrCreateDefaultHackathon } from '@/lib/hackathon-service';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest) {
         const teamName = formData.get('teamName') as string | null;
         const problemStatement = formData.get('problemStatement') as string | null;
         const trackName = formData.get('track') as string | null;
+        const hackathonId = formData.get('hackathonId') as string | null;
         const membersStr = formData.get('members') as string | null;
 
         if (!file || !teamName) {
@@ -77,18 +80,24 @@ export async function POST(req: NextRequest) {
             console.warn('Skipping local file write (read-only filesystem):', fsError instanceof Error ? fsError.message : fsError);
         }
 
-        // 1. Fetch Track Settings
-        let trackSettings = null;
-        if (trackName) {
-            const globalSettings = await Settings.findById('global');
-            if (globalSettings && globalSettings.tracks) {
-                trackSettings = globalSettings.tracks.find((t: ITrack) => t.name === trackName);
-            }
+        // 1. Resolve Hackathon Context & Track Settings
+        let hackathon = null;
+        if (hackathonId) {
+            hackathon = await Hackathon.findById(hackathonId);
+        }
+        if (!hackathon) {
+            hackathon = await getOrCreateDefaultHackathon();
         }
 
-        // 2. Initialize team profile with member roster
+        let trackSettings = null;
+        if (trackName && hackathon?.tracks) {
+            trackSettings = hackathon.tracks.find((t: ITrack) => t.name === trackName);
+        }
+
+        // 2. Initialize team profile with member roster & hackathon ref
         const team = new Team({
             name: teamName,
+            hackathon: hackathon._id,
             track: trackName || 'General',
             problemStatement: problemStatement || 'Not Provided',
             leader: user._id,
@@ -99,13 +108,14 @@ export async function POST(req: NextRequest) {
         // 3. Create Submission (Status: Processing)
         const submission = new Submission({
             team: team._id,
+            hackathon: hackathon._id,
             fileName: file.name,
             fileUrl: fileUrl,
             status: 'AI_PROCESSING'
         });
         await submission.save();
 
-        // 3. Extract Text & Evaluate with Gemini
+        // 3. Extract Text & Evaluate with Gemini using specific Hackathon prompts & Theme
         try {
             const text = await extractTextFromPDF(buffer);
 
@@ -118,8 +128,14 @@ export async function POST(req: NextRequest) {
                 );
             }
 
-            // 4. Send to Gemini for purely Pitch Deck Analysis
-            const evaluation = await evaluatePresentationWithGemini(text, trackSettings);
+            // 4. Send to Gemini with full Hackathon Theme, Description, & Custom AI Prompt
+            const evaluation = await evaluatePresentationWithGemini(text, {
+                trackSettings,
+                hackathonName: hackathon.name,
+                hackathonTheme: hackathon.theme,
+                hackathonDescription: hackathon.description,
+                customAiPrompt: hackathon.customAiPrompt
+            });
 
             // 5. Update Submission
             submission.aiEvaluation = evaluation;

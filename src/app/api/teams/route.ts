@@ -1,21 +1,30 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Team from '@/models/Team';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
 
-        // Find all teams that don't have a githubUrl populated yet
-        const teams = await Team.find({
+        const { searchParams } = new URL(req.url);
+        const hackathonId = searchParams.get('hackathonId');
+
+        const query: Record<string, unknown> = {
             $or: [
                 { githubUrl: { $exists: false } },
                 { githubUrl: null },
                 { githubUrl: '' }
             ]
-        }).select('_id name');
+        };
+
+        if (hackathonId && hackathonId !== 'ALL') {
+            query.hackathon = hackathonId;
+        }
+
+        // Find all teams that don't have a githubUrl populated yet
+        const teams = await Team.find(query).select('_id name track hackathon');
 
         return NextResponse.json({ success: true, teams });
     } catch (error: unknown) {

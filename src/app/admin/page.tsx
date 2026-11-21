@@ -12,12 +12,24 @@ import Link from 'next/link';
 import { ISubmission } from '@/models/Submission';
 import { ITeam } from '@/models/Team';
 
-interface ISubmissionWithTeam extends Omit<ISubmission, 'team'> {
+interface ISubmissionWithTeam extends Omit<ISubmission, 'team' | 'hackathon'> {
     team: ITeam;
+    hackathon?: { _id: string; name: string; theme: string };
+}
+
+interface IHackathonBrief {
+    _id: string;
+    name: string;
+    slug: string;
+    theme: string;
+    isCodeSubmissionOpen: boolean;
+    blindJudgingEnabled: boolean;
 }
 
 export default function AdminDashboard() {
     const [submissions, setSubmissions] = useState<ISubmissionWithTeam[]>([]);
+    const [hackathons, setHackathons] = useState<IHackathonBrief[]>([]);
+    const [selectedHackathonId, setSelectedHackathonId] = useState('ALL');
     const [loading, setLoading] = useState(true);
     const [isCodeSubmissionOpen, setIsCodeSubmissionOpen] = useState(false);
     const [blindJudgingEnabled, setBlindJudgingEnabled] = useState(false);
@@ -28,12 +40,25 @@ export default function AdminDashboard() {
     const [selectedTrack, setSelectedTrack] = useState('ALL');
     const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST'>('SCORE_DESC');
 
-    const fetchSettings = async () => {
+    const fetchHackathons = async () => {
         try {
-            const res = await fetch('/api/settings');
+            const res = await fetch('/api/hackathons');
+            const data = await res.json();
+            if (data.success && Array.isArray(data.data)) {
+                setHackathons(data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch hackathons:', error);
+        }
+    };
+
+    const fetchSettings = async (hId: string = selectedHackathonId) => {
+        try {
+            const url = hId !== 'ALL' ? `/api/settings?hackathonId=${hId}` : '/api/settings';
+            const res = await fetch(url);
             const data = await res.json();
             if (data.success) {
-                setIsCodeSubmissionOpen(data.isCodeSubmissionOpen);
+                setIsCodeSubmissionOpen(Boolean(data.isCodeSubmissionOpen));
                 setBlindJudgingEnabled(Boolean(data.blindJudgingEnabled));
             }
         } catch (error) {
@@ -47,11 +72,14 @@ export default function AdminDashboard() {
             const res = await fetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ isCodeSubmissionOpen: !isCodeSubmissionOpen })
+                body: JSON.stringify({
+                    hackathonId: selectedHackathonId !== 'ALL' ? selectedHackathonId : undefined,
+                    isCodeSubmissionOpen: !isCodeSubmissionOpen
+                })
             });
             const data = await res.json();
             if (data.success) {
-                setIsCodeSubmissionOpen(data.isCodeSubmissionOpen);
+                setIsCodeSubmissionOpen(Boolean(data.isCodeSubmissionOpen));
             }
         } catch (error) {
             console.error('Failed to toggle phase:', error);
@@ -60,10 +88,11 @@ export default function AdminDashboard() {
         }
     };
 
-    const fetchSubmissions = async () => {
+    const fetchSubmissions = async (hId: string = selectedHackathonId) => {
         setLoading(true);
         try {
-            const res = await fetch('/api/submissions');
+            const url = hId !== 'ALL' ? `/api/submissions?hackathonId=${hId}` : '/api/submissions';
+            const res = await fetch(url);
             const data = await res.json();
             if (data.success) {
                 setSubmissions(data.data || []);
@@ -76,9 +105,17 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        fetchSubmissions();
-        fetchSettings();
+        fetchHackathons();
+        fetchSubmissions('ALL');
+        fetchSettings('ALL');
     }, []);
+
+    const handleHackathonChange = (hId: string) => {
+        setSelectedHackathonId(hId);
+        setSelectedTrack('ALL');
+        fetchSubmissions(hId);
+        fetchSettings(hId);
+    };
 
     // Extract unique tracks
     const uniqueTracks = useMemo(() => {
@@ -163,6 +200,21 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        {/* Hackathon Filter Dropdown */}
+                        <div className="flex items-center gap-2 bg-neutral-900/60 p-2 rounded-xl border border-neutral-800">
+                            <Trophy className="w-4 h-4 text-primary ml-1 shrink-0" />
+                            <select
+                                value={selectedHackathonId}
+                                onChange={(e) => handleHackathonChange(e.target.value)}
+                                className="h-8 px-2 text-xs bg-neutral-950 border border-neutral-700 rounded-md text-white font-medium focus:outline-none focus:ring-1 focus:ring-primary max-w-[180px] truncate"
+                            >
+                                <option value="ALL">All Hackathons</option>
+                                {hackathons.map((h) => (
+                                    <option key={h._id} value={h._id}>{h.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         <div className="flex items-center gap-3 bg-neutral-900/60 p-2.5 px-4 rounded-xl border border-neutral-800 backdrop-blur-sm">
                             <div className="text-left">
                                 <div className="text-xs font-medium text-white">Phase 2 Code Submission</div>
@@ -179,16 +231,21 @@ export default function AdminDashboard() {
                             </button>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
+                            <Button asChild variant="outline" size="sm" className="text-primary border-primary/40 bg-primary/10 hover:bg-primary/20">
+                                <Link href="/admin/hackathons">
+                                    <Trophy className="h-4 w-4 mr-1.5" /> Manage Hackathons
+                                </Link>
+                            </Button>
                             <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
-                                <a href="/api/export" download="hackathon_leaderboard.csv">
+                                <a href={`/api/export${selectedHackathonId !== 'ALL' ? `?hackathonId=${selectedHackathonId}` : ''}`} download="hackathon_leaderboard.csv">
                                     <Download className="h-4 w-4 mr-1.5" /> Export CSV
                                 </a>
                             </Button>
                             <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
                                 <Link href="/admin/settings">Settings</Link>
                             </Button>
-                            <Button onClick={fetchSubmissions} variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
+                            <Button onClick={() => fetchSubmissions(selectedHackathonId)} variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
                                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
@@ -347,8 +404,15 @@ export default function AdminDashboard() {
                                                             </Badge>
                                                         )}
                                                     </div>
-                                                    <div className="text-xs text-indigo-400 mt-0.5">
-                                                        {sub.team?.track || 'General'} Track
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="text-xs text-indigo-400">
+                                                            {sub.team?.track || 'General'} Track
+                                                        </span>
+                                                        {sub.hackathon?.name && (
+                                                            <span className="text-[10px] text-neutral-400 bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800">
+                                                                {sub.hackathon.name}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell text-xs text-neutral-400 max-w-xs truncate">

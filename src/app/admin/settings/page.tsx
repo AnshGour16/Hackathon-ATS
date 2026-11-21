@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save, Plus, Trash2, EyeOff } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, EyeOff, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 interface IRubric {
@@ -134,6 +134,22 @@ export default function AdminSettings() {
                         {saving ? 'Saving...' : 'Save Settings'}
                     </Button>
                 </div>
+
+                <Card className="border-indigo-500/30 bg-indigo-950/20 backdrop-blur-md">
+                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                                <Trophy className="w-4 h-4 text-indigo-400" /> Multi-Hackathon Hub
+                            </h3>
+                            <p className="text-xs text-neutral-400 mt-0.5">
+                                Set up distinct hackathons, themes, rules, and tailored AI judging prompts per event.
+                            </p>
+                        </div>
+                        <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0">
+                            <Link href="/admin/hackathons">Manage Hackathons Hub</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
 
                 <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
                     <CardHeader>

@@ -29,6 +29,13 @@ export default async function Navbar() {
 
                     {session ? (
                         <>
+                            {isAdminOrJudge && (
+                                <Button asChild variant="ghost" className="text-neutral-300 hover:text-white hover:bg-primary/20">
+                                    <Link href="/admin/hackathons">
+                                        Hackathons
+                                    </Link>
+                                </Button>
+                            )}
                             <Button asChild variant="default" className="bg-primary hover:bg-primary/80 text-primary-foreground">
                                 <Link href={isAdminOrJudge ? '/admin' : '/dashboard'}>
                                     <LayoutDashboard className="w-4 h-4 mr-2" />

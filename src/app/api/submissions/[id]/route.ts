@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Submission from '@/models/Submission';
 import '@/models/Team';
+import '@/models/Hackathon';
 
 export async function GET(
     request: NextRequest,
@@ -11,7 +12,10 @@ export async function GET(
         const { id } = await params; // Next 15 awaits params
         await connectToDatabase();
 
-        const submission = await Submission.findById(id).populate('team').lean();
+        const submission = await Submission.findById(id)
+            .populate('team')
+            .populate('hackathon', 'name slug theme')
+            .lean();
 
         if (!submission) {
             return NextResponse.json({ error: 'Submission not found' }, { status: 404 });

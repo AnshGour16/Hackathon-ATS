@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { UploadCloud, FileText, CheckCircle2, ArrowRight, Brain, AlertCircle, RefreshCw } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle2, ArrowRight, Brain, AlertCircle, RefreshCw, Trophy, Target, Bot } from 'lucide-react';
 import { useState, useEffect, DragEvent } from 'react';
 import Link from 'next/link';
 
@@ -18,9 +18,25 @@ interface IEvaluationResult {
     weaknesses?: string[];
 }
 
+interface IHackathonOption {
+    _id: string;
+    name: string;
+    slug: string;
+    theme: string;
+    description: string;
+    customAiPrompt: string;
+    tracks: {
+        name: string;
+        requiredSlides: string[];
+        rubrics: { criterion: string; weightage: number; description: string }[];
+    }[];
+}
+
 export default function DocumentUpload() {
     const [file, setFile] = useState<File | null>(null);
     const [teamName, setTeamName] = useState('');
+    const [hackathons, setHackathons] = useState<IHackathonOption[]>([]);
+    const [selectedHackathonId, setSelectedHackathonId] = useState('');
     const [track, setTrack] = useState('');
     const [availableTracks, setAvailableTracks] = useState<{ name: string }[]>([]);
     const [problemStatement, setProblemStatement] = useState('');
@@ -65,15 +81,46 @@ export default function DocumentUpload() {
     };
 
     useEffect(() => {
-        fetch('/api/settings')
+        // Fetch active hackathons and their specific tracks
+        fetch('/api/hackathons')
             .then((res) => res.json())
             .then((data) => {
-                if (data.success && data.tracks) {
-                    setAvailableTracks(data.tracks);
+                if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+                    setHackathons(data.data);
+                    const first = data.data[0];
+                    setSelectedHackathonId(first._id);
+                    if (first.tracks && first.tracks.length > 0) {
+                        setAvailableTracks(first.tracks);
+                    }
                 }
             })
-            .catch(console.error);
+            .catch((err) => {
+                console.error('Failed to load hackathons:', err);
+                // Fallback to legacy settings
+                fetch('/api/settings')
+                    .then((res) => res.json())
+                    .then((sData) => {
+                        if (sData.success && sData.tracks) {
+                            setAvailableTracks(sData.tracks);
+                        }
+                    })
+                    .catch(console.error);
+            });
     }, []);
+
+    const handleHackathonChange = (hId: string) => {
+        setSelectedHackathonId(hId);
+        const found = hackathons.find((h) => h._id === hId);
+        if (found && found.tracks && found.tracks.length > 0) {
+            setAvailableTracks(found.tracks);
+            setTrack('');
+        } else {
+            setAvailableTracks([]);
+            setTrack('');
+        }
+    };
+
+    const selectedHackathon = hackathons.find((h) => h._id === selectedHackathonId) || hackathons[0];
 
     const handleMemberCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
@@ -112,6 +159,7 @@ export default function DocumentUpload() {
         formData.append('file', file);
         formData.append('teamName', teamName);
         formData.append('track', track || 'General');
+        formData.append('hackathonId', selectedHackathonId || '');
         formData.append('problemStatement', problemStatement);
 
         const membersList = members.filter((m) => m.name.trim() || m.department.trim() || m.rollNo.trim());
@@ -222,6 +270,52 @@ export default function DocumentUpload() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {/* Hackathon Selector */}
+                    {hackathons.length > 0 && (
+                        <div className="space-y-3 p-4 rounded-xl bg-neutral-900/60 border border-neutral-800">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <Label htmlFor="hackathonSelect" className="font-bold text-white flex items-center gap-2 text-sm">
+                                    <Trophy className="w-4 h-4 text-primary" /> Select Hackathon
+                                </Label>
+                                {selectedHackathon?.customAiPrompt && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
+                                        <Bot className="w-3 h-3" /> Custom AI Judging Active
+                                    </span>
+                                )}
+                            </div>
+
+                            <select
+                                id="hackathonSelect"
+                                value={selectedHackathonId}
+                                onChange={(e) => handleHackathonChange(e.target.value)}
+                                disabled={isUploading}
+                                className="w-full flex h-10 px-3 py-2 border border-neutral-700 bg-neutral-950 rounded-md text-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                {hackathons.map((h) => (
+                                    <option key={h._id} value={h._id}>
+                                        {h.name} {h.theme ? `• [${h.theme.slice(0, 30)}...]` : ''}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {selectedHackathon && (
+                                <div className="space-y-2 pt-1 border-t border-neutral-800/80 text-xs">
+                                    {selectedHackathon.theme && (
+                                        <div className="flex items-center gap-2 text-indigo-300 font-semibold">
+                                            <Target className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                            <span>Theme: {selectedHackathon.theme}</span>
+                                        </div>
+                                    )}
+                                    {selectedHackathon.description && (
+                                        <p className="text-neutral-400 leading-relaxed">
+                                            {selectedHackathon.description}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="teamName" className="font-semibold text-white">Team or Project Name *</Label>
@@ -236,25 +330,23 @@ export default function DocumentUpload() {
                             />
                         </div>
 
-                        {availableTracks.length > 0 && (
-                            <div className="space-y-2">
-                                <Label htmlFor="track" className="font-semibold text-white">Hackathon Track</Label>
-                                <select
-                                    id="track"
-                                    value={track}
-                                    onChange={(e) => setTrack(e.target.value)}
-                                    className="w-full flex h-10 px-3 py-2 border border-neutral-800 bg-neutral-900/50 rounded-md text-sm text-white"
-                                    disabled={isUploading}
-                                >
-                                    <option value="">General Track (Default)</option>
-                                    {availableTracks.map((t, idx) => (
-                                        <option key={idx} value={t.name}>
-                                            {t.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
+                        <div className="space-y-2">
+                            <Label htmlFor="track" className="font-semibold text-white">Hackathon Track</Label>
+                            <select
+                                id="track"
+                                value={track}
+                                onChange={(e) => setTrack(e.target.value)}
+                                className="w-full flex h-10 px-3 py-2 border border-neutral-800 bg-neutral-900/50 rounded-md text-sm text-white"
+                                disabled={isUploading}
+                            >
+                                <option value="">General Track (Default)</option>
+                                {availableTracks.map((t, idx) => (
+                                    <option key={idx} value={t.name}>
+                                        {t.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="space-y-2">

@@ -1,17 +1,29 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Submission from '@/models/Submission';
 import '@/models/Team'; // To populate references
+import '@/models/Hackathon';
+import { getOrCreateDefaultHackathon } from '@/lib/hackathon-service';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
+        await getOrCreateDefaultHackathon();
 
-        // Fetch submissions and populate the team info
-        const submissions = await Submission.find({})
-            .populate('team', 'name problemStatement track githubUrl')
+        const { searchParams } = new URL(req.url);
+        const hackathonId = searchParams.get('hackathonId');
+
+        const filter: Record<string, unknown> = {};
+        if (hackathonId && hackathonId !== 'ALL') {
+            filter.hackathon = hackathonId;
+        }
+
+        // Fetch submissions and populate the team and hackathon info
+        const submissions = await Submission.find(filter)
+            .populate('team', 'name problemStatement track githubUrl hackathon')
+            .populate('hackathon', 'name slug theme')
             .sort({ createdAt: -1 })
             .lean(); // Faster to use lean for read-only
 

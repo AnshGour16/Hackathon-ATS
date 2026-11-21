@@ -24,6 +24,7 @@ export interface IAIEvaluation {
 
 export interface ISubmission extends Document {
     team: mongoose.Types.ObjectId;
+    hackathon?: mongoose.Types.ObjectId;
     fileUrl: string;
     fileName?: string;
     status: 'PENDING' | 'AI_PROCESSING' | 'EVALUATED' | 'FAILED';
@@ -35,6 +36,7 @@ export interface ISubmission extends Document {
 
 const SubmissionSchema: Schema = new Schema({
     team: { type: Schema.Types.ObjectId, ref: 'Team', required: true },
+    hackathon: { type: Schema.Types.ObjectId, ref: 'Hackathon' },
     fileUrl: { type: String, required: true },
     fileName: { type: String },
     status: {

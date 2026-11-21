@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Submission from '@/models/Submission';
 import '@/models/Team';
+import '@/models/Hackathon';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,9 @@ interface IExportSubmission {
         track?: string;
         problemStatement?: string;
         members?: { name: string }[];
+    };
+    hackathon?: {
+        name?: string;
     };
     status?: string;
     aiEvaluation?: {
@@ -22,17 +26,27 @@ interface IExportSubmission {
     };
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
 
-        const submissions = await Submission.find({})
+        const { searchParams } = new URL(req.url);
+        const hackathonId = searchParams.get('hackathonId');
+
+        const filter: Record<string, unknown> = {};
+        if (hackathonId && hackathonId !== 'ALL') {
+            filter.hackathon = hackathonId;
+        }
+
+        const submissions = await Submission.find(filter)
             .populate('team', 'name problemStatement track members')
+            .populate('hackathon', 'name')
             .sort({ 'aiEvaluation.totalScore': -1, createdAt: -1 })
             .lean() as unknown as IExportSubmission[];
 
         // CSV Header
         const headers = [
+            'Hackathon',
             'Team Name',
             'Track',
             'Problem Statement',
@@ -48,8 +62,10 @@ export async function GET() {
         // Format rows
         const rows = (submissions || []).map(sub => {
             const team = sub.team || {};
+            const hackathon = sub.hackathon || {};
             const evalData = sub.aiEvaluation || {};
             return [
+                hackathon.name || 'Global',
                 team.name || 'Unknown',
                 team.track || 'General',
                 (team.problemStatement || '').replace(/"/g, '""'), // Escape quotes for CSV
@@ -74,6 +90,6 @@ export async function GET() {
         });
     } catch (error: unknown) {
         console.error('API Error:', error);
-        return new NextResponse('Internal Server Error', { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

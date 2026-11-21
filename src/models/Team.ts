@@ -8,6 +8,7 @@ export interface ITeamMember {
 
 export interface ITeam extends Document {
     name: string;
+    hackathon?: mongoose.Types.ObjectId;
     track: string;
     problemStatement: string;
     leader: mongoose.Types.ObjectId;
@@ -20,6 +21,7 @@ export interface ITeam extends Document {
 
 const TeamSchema: Schema = new Schema({
     name: { type: String, required: true },
+    hackathon: { type: Schema.Types.ObjectId, ref: 'Hackathon' },
     track: { type: String, default: 'General' },
     problemStatement: { type: String, required: true },
     leader: { type: Schema.Types.ObjectId, ref: 'User', required: true },
