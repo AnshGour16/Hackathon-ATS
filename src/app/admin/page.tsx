@@ -247,7 +247,7 @@ export default function AdminDashboard() {
                         <div className="flex flex-wrap gap-2">
                             <Button asChild variant="outline" size="sm" className="text-primary border-primary/40 bg-primary/10 hover:bg-primary/20">
                                 <Link href="/admin/hackathons">
-                                    <Trophy className="h-4 w-4 mr-1.5" /> Manage Hackathons
+                                    <Trophy className="h-4 w-4 mr-1.5" /> Event Settings & Themes
                                 </Link>
                             </Button>
                             <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
@@ -258,9 +258,6 @@ export default function AdminDashboard() {
                                     <Download className="h-4 w-4 mr-1.5" />
                                     {shortlistView === 'TOP_25' ? 'Export Top 25 CSV' : shortlistView === 'TOP_10' ? 'Export Top 10 CSV' : 'Export CSV'}
                                 </a>
-                            </Button>
-                            <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
-                                <Link href="/admin/settings">Settings</Link>
                             </Button>
                             <Button onClick={() => fetchSubmissions(selectedHackathonId)} variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
                                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />

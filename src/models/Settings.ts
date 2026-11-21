@@ -1,14 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { ITrack, IRubric } from './Hackathon';
 
-export interface ITrack {
-    name: string;
-    requiredSlides: string[];
-    rubrics: {
-        criterion: string;
-        weightage: number;
-        description: string;
-    }[];
-}
+export type { ITrack, IRubric };
 
 export interface ISettings extends Document {
     isCodeSubmissionOpen: boolean;

@@ -4,7 +4,7 @@ import Team from '@/models/Team';
 import Submission from '@/models/Submission';
 import { extractTextFromPDF } from '@/lib/pdf-parser';
 import { evaluatePresentationWithGemini } from '@/lib/gemini';
-import { ITrack } from '@/models/Settings';
+import { ITrack } from '@/models/Hackathon';
 import Hackathon from '@/models/Hackathon';
 import { getOrCreateDefaultHackathon } from '@/lib/hackathon-service';
 import User from '@/models/User';

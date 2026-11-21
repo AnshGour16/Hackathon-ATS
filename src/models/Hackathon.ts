@@ -1,5 +1,16 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { ITrack } from './Settings';
+
+export interface IRubric {
+    criterion: string;
+    weightage: number;
+    description: string;
+}
+
+export interface ITrack {
+    name: string;
+    requiredSlides: string[];
+    rubrics: IRubric[];
+}
 
 export interface IHackathon extends Document {
     name: string;

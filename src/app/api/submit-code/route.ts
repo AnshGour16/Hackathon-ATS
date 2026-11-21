@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Team from '@/models/Team';
 import Submission from '@/models/Submission';
-import Settings from '@/models/Settings';
 import Hackathon from '@/models/Hackathon';
+import { getOrCreateDefaultHackathon } from '@/lib/hackathon-service';
 import { fetchGithubData } from '@/lib/github';
 import { evaluateCodebaseWithGemini } from '@/lib/gemini';
 
@@ -28,19 +28,18 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Check if the code phase is actually open for this team's hackathon
-        let isPhaseOpen = false;
-        let hackathonInfo = null;
+        let hackathon = null;
         if (team.hackathon) {
-            const h = await Hackathon.findById(team.hackathon);
-            if (h) {
-                isPhaseOpen = h.isCodeSubmissionOpen;
-                hackathonInfo = { name: h.name, theme: h.theme, customAiPrompt: h.customAiPrompt };
-            }
+            hackathon = await Hackathon.findById(team.hackathon);
         }
-        if (!isPhaseOpen) {
-            const globalSettings = await Settings.findById('global');
-            isPhaseOpen = globalSettings?.isCodeSubmissionOpen || false;
+        if (!hackathon) {
+            hackathon = await getOrCreateDefaultHackathon();
+            team.hackathon = hackathon._id;
+            await team.save();
         }
+
+        const isPhaseOpen = hackathon.isCodeSubmissionOpen;
+        const hackathonInfo = { name: hackathon.name, theme: hackathon.theme, customAiPrompt: hackathon.customAiPrompt };
 
         if (!isPhaseOpen) {
             return NextResponse.json({ error: 'Code submission phase is currently locked for this hackathon.' }, { status: 403 });

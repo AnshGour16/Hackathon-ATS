@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { ITrack } from '@/models/Settings';
+import { ITrack } from '@/models/Hackathon';
 
 // Initialize the Gemini SDK. 
 // Note: You must ensure GEMINI_API_KEY is set in your .env.local file.
